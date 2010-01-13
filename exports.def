@@ -1,0 +1,4 @@
+LIBRARY	"OBGEv2"
+EXPORTS
+OBSEPlugin_Query
+OBSEPlugin_Load

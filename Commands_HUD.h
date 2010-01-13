@@ -1,0 +1,10 @@
+#pragma once
+
+#include "CommandTable.h"
+
+extern CommandInfo kCommandInfo_CreateHUDElement;
+extern CommandInfo kCommandInfo_SetHUDElementTexture;
+extern CommandInfo kCommandInfo_SetHUDElementColour;
+extern CommandInfo kCommandInfo_SetHUDElementPosition;
+extern CommandInfo kCommandInfo_SetHUDElementScale;
+extern CommandInfo kCommandInfo_SetHUDElementRotation;
