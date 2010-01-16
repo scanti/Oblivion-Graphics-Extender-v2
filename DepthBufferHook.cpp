@@ -7,6 +7,7 @@
 static IDirect3DTexture9 *pDepthTexture=NULL;
 static IDirect3DSurface9 *pDepthSurface=NULL;
 static bool HasDepthVar;
+static bool IsRAWZflag = false;
 
 struct DFLIST
 {
@@ -19,12 +20,17 @@ DFLIST	DepthList[4]=	{(D3DFORMAT)MAKEFOURCC('I','N','T','Z'),"INTZ",
 						 (D3DFORMAT)MAKEFOURCC('D','F','1','6'),"DF16",
 						 (D3DFORMAT)MAKEFOURCC('R','A','W','Z'),"RAWZ"};
 
+
+#define RAWZINDEX 3
+
 bool v1_2_416::NiDX9ImplicitDepthStencilBufferDataEx::GetBufferDataHook(IDirect3DDevice9 *D3DDevice)
 {
 	HRESULT hr;
 	UInt32 Width,Height;
 	
 	_MESSAGE("Re-attaching depth buffer texture.");
+
+	IsRAWZflag=false;
 
 	Width=v1_2_416::GetRenderer()->SizeWidth;
 	Height=v1_2_416::GetRenderer()->SizeHeight;
@@ -51,7 +57,12 @@ bool v1_2_416::NiDX9ImplicitDepthStencilBufferDataEx::GetBufferDataHook(IDirect3
 			hr=D3DDevice->SetDepthStencilSurface(pDepthSurface);
 			if(hr == D3D_OK)
 			{
-				_MESSAGE("Depth buffer attached OK.");
+				_MESSAGE("Depth buffer attached OK. %i",DepthCount);
+				if(DepthCount==RAWZINDEX)
+				{
+					_MESSAGE("Setting IsRAWZflag.");
+					IsRAWZflag=true;
+				}
 				break;
 			}
 			else
@@ -145,7 +156,12 @@ void static _cdecl DepthBufferHook(IDirect3DDevice9 *Device, UInt32 u2)
 			hr=Device->SetDepthStencilSurface(pDepthSurface);
 			if(hr == D3D_OK)
 			{
-				_MESSAGE("Depth buffer attached OK.");
+				_MESSAGE("Depth buffer attached OK. %i",DepthCount);
+				if(DepthCount==RAWZINDEX)
+				{
+					_MESSAGE("Setting IsRAWZflag.");
+					IsRAWZflag=true;
+				}
 				break;
 			}
 			else
@@ -255,4 +271,9 @@ IDirect3DTexture9 *GetDepthBufferTexture(void)
 bool HasDepth(void)
 {
 	return HasDepthVar;
+};
+
+bool IsRAWZ(void)
+{
+	return IsRAWZflag;
 };

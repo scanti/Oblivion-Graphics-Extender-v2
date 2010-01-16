@@ -7,7 +7,6 @@
 #include "OBGE fork/Sky.h"
 #include "nodes/NiBillboardNode.h"
 #include <vector>
-#include "TextureManager.h"
 #include "Rendering.h"
 
 #define MYVERTEXFORMAT D3DFVF_XYZRHW|D3DFVF_TEX1
@@ -67,6 +66,7 @@ public:
 	void						UpdateStaticConstants(void);
 	void						UpdateFrameConstants(void);
 	void						Render(IDirect3DDevice9 *D3DDevice,IDirect3DSurface9 *RenderTo, IDirect3DSurface9 *RenderFrom);
+	void						RenderRAWZfix(IDirect3DDevice9*	D3DDevice,IDirect3DSurface9 *RenderTo);
 	void						OnLostDevice(void);
 	void						OnResetDevice(void);
 	void						InitialiseBuffers(void);
@@ -91,6 +91,7 @@ public:
 
 	int							DynamicShaderStart;			
 	ShaderList					Shaders;
+	ShaderRecord*				DepthShader;
 	
 	Constants					ShaderConst;
 };

@@ -22,3 +22,4 @@ void CreateDepthBufferHook(void);
 IDirect3DTexture9 *GetDepthBufferTexture(void);
 bool LostDepthBuffer(bool stage,void *parameters);
 bool HasDepth(void);
+bool IsRAWZ(void);

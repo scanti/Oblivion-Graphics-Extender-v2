@@ -7,6 +7,7 @@
 #include "nodes/NiBillboardNode.h"
 #include "nodes/NiVector4.h"
 #include "ScreenElements.h"
+#include "TextureManager.h"
 
 #pragma warning(disable : 4996)
 
@@ -107,20 +108,6 @@ void OBSEShaderInterface::DeviceLost()
 		pFont->OnLostDevice();
 	}
 
-/*
-	if(D3D_ShaderBuffer)
-	{
-		_MESSAGE("Releasing shader vertex buffer.");
-		while(D3D_ShaderBuffer->Release()){}
-		D3D_ShaderBuffer=NULL;
-	}
-
-	if (Effect)
-	{
-		Effect->OnLostDevice();
-	}
-*/
-
 	if(pFont2)
 	{
 		pFont2->OnLostDevice();
@@ -146,52 +133,6 @@ void OBSEShaderInterface::DeviceReset()
 
 	TextureManager::GetSingleton()->InitialiseFrameTextures();
 	ShaderManager::GetSingleton()->OnResetDevice();
-
-	/*
-	D3D_sShaderVertex ShaderVertices[] = {
-		{-0.5,-0.5,0,1,0,0},
-		{-0.5,+5.0,0,1,0,1},
-		{+5.0,-0.5,0,1,1,0},
-		{+5.0,+5.0,0,1,1,1}
-	};
-
-	_MESSAGE("Recreating vertex buffers.");
-	GetD3DDevice()->CreateVertexBuffer(4*sizeof(D3D_sShaderVertex),D3DUSAGE_WRITEONLY,MYVERTEXFORMAT,D3DPOOL_DEFAULT,&D3D_ShaderBuffer,0);
-	void* VertexPointer;
-	ShaderVertices[3].x=ShaderVertices[2].x=(float)(v1_2_416::GetRenderer()->SizeWidth)-.5f;
-	ShaderVertices[3].y=ShaderVertices[1].y=(float)(v1_2_416::GetRenderer()->SizeHeight)-.5f;
-	D3D_ShaderBuffer->Lock(0,0,&VertexPointer,0);
-	CopyMemory(VertexPointer,ShaderVertices,sizeof(ShaderVertices));
-	D3D_ShaderBuffer->Unlock();
-
-	_MESSAGE("Recreating screen texture.");
-	_MESSAGE("Width = %i, Height = %i",v1_2_416::GetRenderer()->SizeWidth,v1_2_416::GetRenderer()->SizeHeight);
-	GetD3DDevice()->CreateTexture(v1_2_416::GetRenderer()->SizeWidth,v1_2_416::GetRenderer()->SizeHeight,1,D3DUSAGE_RENDERTARGET,D3DFMT_X8R8G8B8,D3DPOOL_DEFAULT,&D3D_ShaderTex1,0);
-	GetD3DDevice()->CreateTexture(v1_2_416::GetRenderer()->SizeWidth,v1_2_416::GetRenderer()->SizeHeight,1,D3DUSAGE_RENDERTARGET,D3DFMT_X8R8G8B8,D3DPOOL_DEFAULT,&D3D_ShaderTex2,0);
-	GetD3DDevice()->CreateTexture(v1_2_416::GetRenderer()->SizeWidth,v1_2_416::GetRenderer()->SizeHeight,1,D3DUSAGE_RENDERTARGET,D3DFMT_X8R8G8B8,D3DPOOL_DEFAULT,&D3D_lastframeTex,0);
-	
-	_MESSAGE("Setting screen surface.");
-	D3D_ShaderTex1->GetSurfaceLevel(0,&D3D_ShaderSurf1);
-	D3D_ShaderTex2->GetSurfaceLevel(0,&D3D_ShaderSurf2);
-	D3D_lastframeTex->GetSurfaceLevel(0,&D3D_lastframeSurf);
-
-	if(Effect)
-	{
-		Effect->OnResetDevice();
-	}
-
-	_MESSAGE("Resetting effects screen texture.");
-	Effect->SetTexture("thisframe",D3D_ShaderTex1);
-	Effect->SetTexture("lastpass",D3D_ShaderTex2);
-	Effect->SetTexture("lastframe",D3D_lastframeTex);
-
-	rcpres[0]=1.0f/(float)v1_2_416::GetRenderer()->SizeWidth;
-	rcpres[1]=1.0f/(float)v1_2_416::GetRenderer()->SizeHeight;
-	Effect->SetFloatArray("rcpres",(float*)&rcpres,2);
-
-	Effect->SetBool("bHasDepth",HasDepth());
-	Effect->SetTexture("Depth",GetDepthBufferTexture());
-	*/
 }
 
 void OBSEShaderInterface::DeviceRelease()

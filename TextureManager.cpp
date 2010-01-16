@@ -1,4 +1,6 @@
 #include "TextureManager.h"
+#include "ShaderManager.h"
+#include "ScreenElements.h"
 
 TextureRecord::TextureRecord()
 {
@@ -52,6 +54,9 @@ TextureManager::TextureManager()
 	lastframeSurf=NULL;
 	HasDepth=false;
 	depth=NULL;
+	depthSurface=NULL;
+	depthRAWZ=NULL;
+	RAWZflag=false;
 }
 
 TextureManager::~TextureManager()
@@ -98,7 +103,17 @@ void	TextureManager::InitialiseFrameTextures()
 	lastframeTex->GetSurfaceLevel(0,&lastframeSurf);
 
 	_MESSAGE("Setting depth texture.");
-	depth=GetDepthBufferTexture();
+	if(IsRAWZ())
+	{
+		_MESSAGE("RAWZ depth texture - applying fix.");
+		depthRAWZ=GetDepthBufferTexture();
+		//GetD3DDevice()->CreateTexture(v1_2_416::GetRenderer()->SizeWidth,v1_2_416::GetRenderer()->SizeHeight,1,D3DUSAGE_RENDERTARGET,D3DFMT_X8R8G8B8,D3DPOOL_DEFAULT,&depth,0);
+		GetD3DDevice()->CreateTexture(v1_2_416::GetRenderer()->SizeWidth,v1_2_416::GetRenderer()->SizeHeight,1,D3DUSAGE_RENDERTARGET,D3DFMT_R32F,D3DPOOL_DEFAULT,&depth,0);
+		depth->GetSurfaceLevel(0,&depthSurface);
+		RAWZflag=true;
+	}
+	else
+		depth=GetDepthBufferTexture();
 }
 
 void	TextureManager::DeviceRelease()
@@ -286,7 +301,7 @@ void TextureManager::ReleaseTexture(IDirect3DTexture9 *texture)
 	if(Textures[index]->texture)
 	{
 		_MESSAGE("Releasing %s",Textures[index]->Filepath);
-		//HUDManager::GetSingleton()->PurgeTexture(index);
+		HUDManager::GetSingleton()->PurgeTexture(index);
 		ShaderManager::GetSingleton()->PurgeTexture(Textures[index]->texture);
 		while(Textures[index]->texture->Release()){};
 		Textures[index]->texture=NULL;

@@ -1,4 +1,5 @@
 #include "ShaderManager.h"
+#include "TextureManager.h"
 
 ShaderRecord::ShaderRecord()
 {
@@ -244,7 +245,20 @@ void ShaderManager::Render(IDirect3DDevice9 *D3DDevice,IDirect3DSurface9 *Render
 
 	TextureManager* TexMan=TextureManager::GetSingleton();
 
+	if(TexMan->RAWZflag)
+	{
+		D3DDevice->EndScene();
+		D3DDevice->SetRenderTarget(0,TexMan->depthSurface);
+		D3DDevice->BeginScene();
+		RenderRAWZfix(D3DDevice,RenderTo);
+		D3DDevice->EndScene();
+		D3DDevice->SetRenderTarget(0,RenderTo);
+		D3DDevice->BeginScene();
+	}
+
+
 	D3DDevice->StretchRect(RenderFrom,0,TexMan->thisframeSurf,0,D3DTEXF_NONE);
+	D3DDevice->StretchRect(RenderFrom,0,RenderTo,0,D3DTEXF_NONE); // Blank screen fix when ShaderList is empty.
 	
 	ShaderList::iterator Shader=Shaders.begin();
 
@@ -260,6 +274,18 @@ void ShaderManager::Render(IDirect3DDevice9 *D3DDevice,IDirect3DSurface9 *Render
 	}
 	
 	D3DDevice->StretchRect(RenderTo,0,TexMan->lastframeSurf,0,D3DTEXF_NONE);
+	return;
+}
+
+void ShaderManager::RenderRAWZfix(IDirect3DDevice9* D3DDevice,IDirect3DSurface9 *RenderTo)
+{
+	if(!DepthShader)
+	{
+		DepthShader=new(ShaderRecord);
+		DepthShader->LoadShader("RAWZfix.fx");
+		DepthShader->Effect->SetTexture("RAWZdepth",TextureManager::GetSingleton()->depthRAWZ);
+	}
+	DepthShader->Render(D3DDevice,RenderTo);
 	return;
 }
 

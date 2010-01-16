@@ -5,7 +5,6 @@
 #include "DepthBufferHook.h"
 #include "Rendering.h"
 #include "nodes\NiDX9Renderer.h"
-#include "ShaderManager.h"
 
 class TextureRecord
 {
@@ -63,5 +62,8 @@ public:
 	IDirect3DSurface9*		lastframeSurf;
 	bool					HasDepth;
 	IDirect3DTexture9*		depth;
+	IDirect3DSurface9*		depthSurface;
+	IDirect3DTexture9*		depthRAWZ;
+	bool					RAWZflag;
 };
 

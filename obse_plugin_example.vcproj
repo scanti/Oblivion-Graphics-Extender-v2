@@ -479,6 +479,14 @@
 				>
 			</File>
 		</Filter>
+		<Filter
+			Name="Shaders"
+			>
+			<File
+				RelativePath=".\Shaders\RAWZfix.fx"
+				>
+			</File>
+		</Filter>
 		<File
 			RelativePath=".\Commands_HUD.cpp"
 			>
