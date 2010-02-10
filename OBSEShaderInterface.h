@@ -5,6 +5,7 @@
 #include "d3dx9.h"
 #include "ShaderManager.h"
 #include <stdio.h>
+#include "obse\PluginAPI.h"
 
 // This class overloads the SpoofShader class and renders the memory dump to the screen.
 
@@ -24,6 +25,8 @@ public:
 	virtual void			DeviceReset(void);
 	virtual void			DeviceRelease(void);		// Basically the deconstructor. Kept seperate do I can't confuse with "Oblivion's" deconstructor.
 	virtual void			NewGame(void);
+	virtual void			LoadGame(OBSESerializationInterface *Interface);
+	virtual void			SaveGame(OBSESerializationInterface *Interface);
 
 	UInt32					MemoryAddr;
 	

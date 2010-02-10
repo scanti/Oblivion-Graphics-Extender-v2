@@ -70,4 +70,7 @@ public:
 	void				Render(void);
 	void				DeviceLost(void);
 	void				DeviceReset(void);
+	void				NewGame(void);
+	void				LoadGame(void);
+	void				SaveGame(void);
 };

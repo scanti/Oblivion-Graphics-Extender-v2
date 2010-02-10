@@ -7,10 +7,36 @@
 #include "OBGE fork/Sky.h"
 #include "nodes/NiBillboardNode.h"
 #include <vector>
+#include <map>
+#include <utility>
 #include "Rendering.h"
+#include "obse/PluginAPI.h"
 
 #define MYVERTEXFORMAT D3DFVF_XYZRHW|D3DFVF_TEX1
+
+#define SHADERVERSION 1
+
 struct D3D_sShaderVertex { float x,y,z,w,u,v; };
+
+struct TextureType
+{
+	int tex;
+	char Name[100];
+};
+
+struct IntType
+{
+	char Name[100];
+	int size;
+	int	data[16];
+};
+
+struct FloatType
+{
+	char Name[100];
+	int size;
+	float data[16];
+};
 
 struct Constants
 {
@@ -46,14 +72,17 @@ public:
 	bool						SetShaderFloat(char *name, float value);
 	bool						SetShaderVector(char *name, v1_2_416::NiVector4 *value);
 	bool						SetShaderTexture(char *name, int TextureNum);
+	void						SaveVars(OBSESerializationInterface *Interface);
 
 	char						Name[100];
 	char						Filepath[MAX_PATH];
 	ID3DXEffect*				Effect;
 	bool						Enabled;
+	UINT32						ParentRefID; // Associates a shader with the esp/esm file the script the shader was created in.
 };
 
-typedef std::vector<ShaderRecord*> ShaderList;
+typedef std::vector<ShaderRecord*> StaticShaderList;
+typedef std::map<int, ShaderRecord*> ShaderList;
 
 class ShaderManager
 {
@@ -73,10 +102,12 @@ public:
 	void						DeviceRelease(void);
 	void						LoadShaderList(void);
 	void						NewGame(void);
+	void						LoadGame(OBSESerializationInterface *Interface);
+	void						SaveGame(OBSESerializationInterface *Interface);
 
-	int							AddShader(char *Filename, bool AllowDuplicates);
+	int							AddShader(char *Filename, bool AllowDuplicates, UINT32 refID);
+	bool						AddStaticShader(char *Filename);
 	bool						RemoveShader(int ShaderNum);
-	void						PurgeShaderList(void);
 	bool						IsShaderValid(int ShaderNum);
 	bool						EnableShader(int ShaderNum, bool State);
 	bool						SetShaderInt(int ShaderNum,char *name, int value);
@@ -89,7 +120,9 @@ public:
 
 	IDirect3DVertexBuffer9*		D3D_ShaderBuffer;
 
-	int							DynamicShaderStart;			
+	int							ShaderIndex;
+	int							MaxShaderIndex;
+	StaticShaderList			StaticShaders;
 	ShaderList					Shaders;
 	ShaderRecord*				DepthShader;
 	

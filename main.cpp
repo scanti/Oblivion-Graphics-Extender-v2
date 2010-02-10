@@ -13,10 +13,13 @@
 #include "OBSEShaderInterface.h"
 #include "Rendering.h"
 #include "DepthBufferHook.h"
+#include "GlobalSettings.h"
 
 #include <stdlib.h>
 
 #define EXTRACTARGS paramInfo, arg1, opcodeOffsetPtr, thisObj, arg3, scriptObj, eventList
+
+//global<int> testglobal(1234,NULL,"test","iTest");
 
 
 IDebugLog	gLog("OBGEv2.log");
@@ -119,6 +122,7 @@ bool Cmd_ShowDebugInfo(COMMAND_ARGS)
 static void SaveCallback(void * reserved)
 {
 	_MESSAGE("Saving a game.");
+	OBSEShaderInterface::GetSingleton()->SaveGame(g_serialization);
 	/*
 	// write out the string
 	g_serialization->OpenRecord('STR ', 0);
@@ -132,10 +136,7 @@ static void SaveCallback(void * reserved)
 static void LoadCallback(void * reserved)
 {
 	_MESSAGE("Loading a game.");
-	if(!OBSEShaderInterface::Singleton)
-		OBSEShaderInterface::GetSingleton()->ActivateShader=true;
-	else
-		OBSEShaderInterface::GetSingleton()->NewGame();
+	OBSEShaderInterface::GetSingleton()->LoadGame(g_serialization);
 
 	/*
 	UInt32	type, version, length;
@@ -185,6 +186,7 @@ void MessageHandler(OBSEMessagingInterface::Message* msg)
 	{
 	case OBSEMessagingInterface::kMessage_ExitGame:
 		_MESSAGE("Received ExitGame message.");
+		INIList::GetSingleton()->WriteAllToINI();
 		ReleaseShader();
 		break;
 	case OBSEMessagingInterface::kMessage_LoadGame:
@@ -329,6 +331,10 @@ bool OBSEPlugin_Load(const OBSEInterface * obse)
 
 	if (!obse->isEditor)
 	{
+		// Initialise global INI settings.
+
+		INIList::GetSingleton()->ReadAllFromINI();
+
 		// register to receive messages from OBSE
 		OBSEMessagingInterface* msgIntfc = (OBSEMessagingInterface*)obse->QueryInterface(kInterface_Messaging);
 		msgIntfc->RegisterListener(g_pluginHandle, "OBSE", MessageHandler);

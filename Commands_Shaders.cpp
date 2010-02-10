@@ -2,6 +2,7 @@
 #include "Commands_Misc.h"
 #include "Commands_Params.h"
 #include "ShaderManager.h"
+#include "Script.h"
 
 static bool LoadShader_Execute(COMMAND_ARGS)
 {
@@ -12,10 +13,13 @@ static bool LoadShader_Execute(COMMAND_ARGS)
 
 	if(!ExtractArgs(EXTRACTARGS, &path, &AllowDuplicates)) return true;
 
-	*result = ShaderManager::GetSingleton()->AddShader(path,AllowDuplicates!=0);
+	_MESSAGE("Shader (%s) - Script refID = %x",path,scriptObj->refID);
+
+	*result = ShaderManager::GetSingleton()->AddShader(path,AllowDuplicates!=0,scriptObj->refID);
 
 	return true;
 }
+
 static bool ApplyFullscreenShader_Execute(COMMAND_ARGS)
 {
 	*result=0;

@@ -4,6 +4,9 @@
 #include "nodes\NiDX9Renderer.h"
 #include "Rendering.h"
 
+static global<bool> UseDepthBuffer(true,NULL,"DepthBuffer","bUseDepthBuffer");
+static global<bool> UseRAWZfix(true,NULL,"DepthBuffer","bUseRAWZfix");
+
 static IDirect3DTexture9 *pDepthTexture=NULL;
 static IDirect3DSurface9 *pDepthSurface=NULL;
 static bool HasDepthVar;
@@ -38,60 +41,70 @@ bool v1_2_416::NiDX9ImplicitDepthStencilBufferDataEx::GetBufferDataHook(IDirect3
 	IDirect3DSurface9 *pOldSurface;
 	D3DDevice->GetDepthStencilSurface(&pOldSurface);
 
-	HasDepthVar=true;
+	
 
-	int DepthCount;
-
-	for(DepthCount=0;DepthCount<4;DepthCount++)
+	if(UseDepthBuffer.data)
 	{
-		hr=D3DDevice->CreateTexture(Width, Height , 1, D3DUSAGE_DEPTHSTENCIL, DepthList[DepthCount].FourCC, D3DPOOL_DEFAULT, &pDepthTexture, NULL);
+		HasDepthVar=true;
 		
-		if(hr == D3D_OK)
-		{
-			_MESSAGE("Depth buffer texture (%s) (%i,%i) created OK.",DepthList[DepthCount].Name, Width, Height);
+		int DepthCount;
 
-			// Retrieve depth buffer surface from texture interface
-			pDepthTexture->GetSurfaceLevel(0, &pDepthSurface);
+		for(DepthCount=0;DepthCount<4;DepthCount++)
+		{
+			hr=D3DDevice->CreateTexture(Width, Height , 1, D3DUSAGE_DEPTHSTENCIL, DepthList[DepthCount].FourCC, D3DPOOL_DEFAULT, &pDepthTexture, NULL);
 			
-			// Bind depth buffer
-			hr=D3DDevice->SetDepthStencilSurface(pDepthSurface);
 			if(hr == D3D_OK)
 			{
-				_MESSAGE("Depth buffer attached OK. %i",DepthCount);
-				if(DepthCount==RAWZINDEX)
+				_MESSAGE("Depth buffer texture (%s) (%i,%i) created OK.",DepthList[DepthCount].Name, Width, Height);
+
+				// Retrieve depth buffer surface from texture interface
+				pDepthTexture->GetSurfaceLevel(0, &pDepthSurface);
+				
+				// Bind depth buffer
+				hr=D3DDevice->SetDepthStencilSurface(pDepthSurface);
+				if(hr == D3D_OK)
 				{
-					_MESSAGE("Setting IsRAWZflag.");
-					IsRAWZflag=true;
+					_MESSAGE("Depth buffer attached OK. %i",DepthCount);
+					if(UseRAWZfix.data && (DepthCount==RAWZINDEX))
+					{
+						_MESSAGE("Setting IsRAWZflag.");
+						IsRAWZflag=true;
+					}
+					break;
 				}
-				break;
+				else
+				{
+					_MESSAGE("Failed to attach depth buffer.");
+					while(pDepthTexture->Release()){};
+				}
 			}
 			else
 			{
-				_MESSAGE("Failed to attach depth buffer.");
-				while(pDepthTexture->Release()){};
+				_MESSAGE("Failed to create buffer texture (%s).",DepthList[DepthCount].Name);
 			}
+		}
+
+		if (DepthCount==4)
+		{
+			_MESSAGE("Failed in creating a readable depth buffer. Will use Oblivion's default buffer.");
+			D3DDevice->SetDepthStencilSurface(pOldSurface);
+			HasDepthVar=false;
+
 		}
 		else
 		{
-			_MESSAGE("Failed to create buffer texture (%s).",DepthList[DepthCount].Name);
+			_MESSAGE("Releasing the original depth surface.");
+			if (pOldSurface)
+			{
+				while(pOldSurface->Release()){};
+				pOldSurface=NULL;
+			}
 		}
-	}
-
-	if (DepthCount==4)
-	{
-		_MESSAGE("Failed in creating a readable depth buffer. Will use Oblivion's default buffer.");
-		D3DDevice->SetDepthStencilSurface(pOldSurface);
-		HasDepthVar=false;
-
 	}
 	else
 	{
-		_MESSAGE("Releasing the original depth surface.");
-		if (pOldSurface)
-		{
-			while(pOldSurface->Release()){};
-			pOldSurface=NULL;
-		}
+		_MESSAGE("Readable depth buffer disabled in INI file.");
+		HasDepthVar=false;
 	}
 	
 
@@ -127,70 +140,78 @@ void static _cdecl DepthBufferHook(IDirect3DDevice9 *Device, UInt32 u2)
 	IDirect3DSurface9 *pOldSurface;
 	Device->GetDepthStencilSurface(&pOldSurface);
 
-	HasDepthVar=true;
-
-	IDirect3D9*	pD3D;
-	D3DDISPLAYMODE d3ddm;
-	Device->GetDirect3D(&pD3D);
-	pD3D->GetAdapterDisplayMode( D3DADAPTER_DEFAULT, &d3ddm );
-	hr=pD3D->CheckDeviceFormat(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, d3ddm.Format, D3DUSAGE_RENDERTARGET, D3DRTYPE_SURFACE,(D3DFORMAT)MAKEFOURCC('R','E','S','Z'));
-	if(hr==D3D_OK)
-		_MESSAGE("RESZ format supported.");
-	else
-		_MESSAGE("RESZ not supported.");
-
-	int DepthCount;
-
-	for(DepthCount=0;DepthCount<4;DepthCount++)
+	if(UseDepthBuffer.data)
 	{
-		hr=Device->CreateTexture(Width, Height , 1, D3DUSAGE_DEPTHSTENCIL, DepthList[DepthCount].FourCC, D3DPOOL_DEFAULT, &pDepthTexture, NULL);
-		
-		if(hr == D3D_OK)
-		{
-			_MESSAGE("Depth buffer texture (%s) (%i,%i) created OK.",DepthList[DepthCount].Name, Width, Height);
+		HasDepthVar=true;
 
-			// Retrieve depth buffer surface from texture interface
-			pDepthTexture->GetSurfaceLevel(0, &pDepthSurface);
+		IDirect3D9*	pD3D;
+		D3DDISPLAYMODE d3ddm;
+		Device->GetDirect3D(&pD3D);
+		pD3D->GetAdapterDisplayMode( D3DADAPTER_DEFAULT, &d3ddm );
+		hr=pD3D->CheckDeviceFormat(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, d3ddm.Format, D3DUSAGE_RENDERTARGET, D3DRTYPE_SURFACE,(D3DFORMAT)MAKEFOURCC('R','E','S','Z'));
+		if(hr==D3D_OK)
+			_MESSAGE("RESZ format supported.");
+		else
+			_MESSAGE("RESZ not supported.");
+
+		int DepthCount;
+
+		for(DepthCount=0;DepthCount<4;DepthCount++)
+		{
+			hr=Device->CreateTexture(Width, Height , 1, D3DUSAGE_DEPTHSTENCIL, DepthList[DepthCount].FourCC, D3DPOOL_DEFAULT, &pDepthTexture, NULL);
 			
-			// Bind depth buffer
-			hr=Device->SetDepthStencilSurface(pDepthSurface);
 			if(hr == D3D_OK)
 			{
-				_MESSAGE("Depth buffer attached OK. %i",DepthCount);
-				if(DepthCount==RAWZINDEX)
+				_MESSAGE("Depth buffer texture (%s) (%i,%i) created OK.",DepthList[DepthCount].Name, Width, Height);
+
+				// Retrieve depth buffer surface from texture interface
+				pDepthTexture->GetSurfaceLevel(0, &pDepthSurface);
+				
+				// Bind depth buffer
+				hr=Device->SetDepthStencilSurface(pDepthSurface);
+				if(hr == D3D_OK)
 				{
-					_MESSAGE("Setting IsRAWZflag.");
-					IsRAWZflag=true;
+					_MESSAGE("Depth buffer attached OK. %i",DepthCount);
+					if(UseRAWZfix.data && (DepthCount==RAWZINDEX))
+					{
+						_MESSAGE("Setting IsRAWZflag.");
+						IsRAWZflag=true;
+					}
+					break;
 				}
-				break;
+				else
+				{
+					_MESSAGE("Failed to attach depth buffer.");
+					while(pDepthTexture->Release()){};
+				}
 			}
 			else
 			{
-				_MESSAGE("Failed to attach depth buffer.");
-				while(pDepthTexture->Release()){};
+				_MESSAGE("Failed to create buffer texture (%s).",DepthList[DepthCount].Name);
 			}
+		}
+
+		if (DepthCount==4)
+		{
+			_MESSAGE("Failed in creating a readable depth buffer. Will use Oblivion's default buffer.");
+			Device->SetDepthStencilSurface(pOldSurface);
+			HasDepthVar=false;
+
 		}
 		else
 		{
-			_MESSAGE("Failed to create buffer texture (%s).",DepthList[DepthCount].Name);
+			_MESSAGE("Releasing the original depth surface.");
+			if (pOldSurface)
+			{
+				while(pOldSurface->Release()){};
+				pOldSurface=NULL;
+			}
 		}
-	}
-
-	if (DepthCount==4)
-	{
-		_MESSAGE("Failed in creating a readable depth buffer. Will use Oblivion's default buffer.");
-		Device->SetDepthStencilSurface(pOldSurface);
-		HasDepthVar=false;
-
 	}
 	else
 	{
-		_MESSAGE("Releasing the original depth surface.");
-		if (pOldSurface)
-		{
-			while(pOldSurface->Release()){};
-			pOldSurface=NULL;
-		}
+		_MESSAGE("Readable depth buffer disabled in INI file.");
+		HasDepthVar=false;
 	}
 	
 

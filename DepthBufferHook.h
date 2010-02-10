@@ -2,6 +2,7 @@
 
 #include "D3D9.h"
 #include "Nodes\NiDX9ImplicitDepthStencilBufferData.h"
+#include "GlobalSettings.h"
 
 namespace v1_2_416
 {

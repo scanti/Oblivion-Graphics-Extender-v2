@@ -1,6 +1,7 @@
 #include "TextureManager.h"
 #include "ShaderManager.h"
 #include "ScreenElements.h"
+#include "obse\pluginapi.h"
 
 TextureRecord::TextureRecord()
 {
@@ -107,7 +108,6 @@ void	TextureManager::InitialiseFrameTextures()
 	{
 		_MESSAGE("RAWZ depth texture - applying fix.");
 		depthRAWZ=GetDepthBufferTexture();
-		//GetD3DDevice()->CreateTexture(v1_2_416::GetRenderer()->SizeWidth,v1_2_416::GetRenderer()->SizeHeight,1,D3DUSAGE_RENDERTARGET,D3DFMT_X8R8G8B8,D3DPOOL_DEFAULT,&depth,0);
 		GetD3DDevice()->CreateTexture(v1_2_416::GetRenderer()->SizeWidth,v1_2_416::GetRenderer()->SizeHeight,1,D3DUSAGE_RENDERTARGET,D3DFMT_R32F,D3DPOOL_DEFAULT,&depth,0);
 		depth->GetSurfaceLevel(0,&depthSurface);
 		RAWZflag=true;
@@ -191,14 +191,14 @@ int	TextureManager::LoadTexture(char *Filename, DWORD FromFile)
 		{
 			Textures[i]->texture=tex;
 			strcpy_s(Textures[i]->Filepath,256,NewPath);
-			Textures[i]->FromFile=FromFile;
+			Textures[i]->FromFile=(FromFile!=0);
 			return i;
 		}
 	}
 	TextureRecord	*TextureElement=new(TextureRecord);
 	TextureElement->texture=tex;
-	strcpy_s(TextureElement->Filepath,256,NewPath);
-	TextureElement->FromFile=FromFile;
+	strcpy_s(TextureElement->Filepath,256,Filename);
+	TextureElement->FromFile=(FromFile!=0);
 	Textures.push_back(TextureElement);
 	return Textures.size()-1;
 }
@@ -309,6 +309,117 @@ void TextureManager::ReleaseTexture(IDirect3DTexture9 *texture)
 	}
 	
 }
+
+void TextureManager::LoadGame(OBSESerializationInterface *Interface)
+{
+	int maxtex=0;
+	int i;
+	UInt32	type, version, length;
+	int OldTextureNum=-1;
+	int TextureNum=-1;
+	char TexturePath[260];
+	bool TextureFromFile;
+
+	Interface->GetNextRecordInfo(&type, &version, &length);
+
+	if(type=='TIDX')
+	{
+		Interface->ReadRecordData(&maxtex,length);
+		_MESSAGE("Save file links %i textures.",maxtex);
+	}
+	else
+	{
+		_MESSAGE("No texture data found in save file.");
+		return;
+	}
+
+	while(TextureNum<(maxtex-1))
+	{
+		if((Interface->GetNextRecordInfo(&type,&version, &length))&&(type=='TNUM'))
+		{
+			OldTextureNum=TextureNum;
+			Interface->ReadRecordData(&TextureNum,length);
+			_MESSAGE("Found TNUM record = %i.",TextureNum);
+			for(i=OldTextureNum;i<TextureNum;i++)
+			{
+				TextureRecord *tex = new(TextureRecord);
+				tex->texture=NULL;
+				tex->Filepath[0]=0;
+				Textures.push_back(tex);
+			}
+
+			if((Interface->GetNextRecordInfo(&type,&version, &length))&&(type=='TPAT'))
+			{
+				Interface->ReadRecordData(TexturePath,length);
+				_MESSAGE("Found TPAT record = %s",TexturePath);
+			}
+			else
+			{
+				_MESSAGE("Error loading texture list. type!=TPAT");
+				return;
+			}
+
+			if((Interface->GetNextRecordInfo(&type, &version, &length)) && (type=='TFFL'))
+			{
+				Interface->ReadRecordData(&TextureFromFile,length);
+				_MESSAGE("Found TFFL record = %i",TextureFromFile);
+			}
+			else
+			{
+				_MESSAGE("Error loading texture list. type!=TFFL");
+				return;
+			}
+
+			if(LoadTexture(TexturePath,TextureFromFile)==-1)
+			{
+				_MESSAGE("Error loading texture list: texture (%s) no longer exists.",TexturePath);
+				TextureRecord *tex = new(TextureRecord);
+				tex->texture=NULL;
+				tex->Filepath[0]=0;
+				Textures.push_back(tex);
+			}
+		}
+		else
+		{
+			_MESSAGE("Error loading texture list: too small.");
+			return;
+		}
+	}
+}	 
+
+ void TextureManager::SaveGame(OBSESerializationInterface *Interface)
+ {
+	int i;
+	int MaxTexture;
+
+	MaxTexture=Textures.size();
+
+	_MESSAGE("Calling TextureManager::SaveGame");
+
+	Interface->WriteRecord('TIDX',TEXTUREVERSION,&MaxTexture,sizeof(MaxTexture));
+
+	for (i=0;i<MaxTexture;i++)
+	{
+		if(Textures.at(i)->texture)
+		{
+			Interface->WriteRecord('TNUM',TEXTUREVERSION,&i,sizeof(i));
+			Interface->WriteRecord('TPAT',TEXTUREVERSION,Textures.at(i)->Filepath,strlen(Textures.at(i)->Filepath)+1);
+			Interface->WriteRecord('TFFL',TEXTUREVERSION,&Textures.at(i)->FromFile,sizeof(Textures.at(i)->FromFile));
+		}
+	}
+ }
+
+ int TextureManager::FindTexture(IDirect3DTexture9* texture)
+ {
+	for(int pos=0;pos<Textures.size();pos++)
+	{
+		if(Textures.at(pos)->texture==texture)
+		{
+			return(pos);
+		}
+	}
+	return(-1);
+ }
 
 
 

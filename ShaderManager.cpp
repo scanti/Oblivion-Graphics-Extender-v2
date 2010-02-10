@@ -1,11 +1,15 @@
 #include "ShaderManager.h"
 #include "TextureManager.h"
+#include "GlobalSettings.h"
+
+static global<bool> UseShaderList(true,NULL,"Shaders","bUseShaderList");
 
 ShaderRecord::ShaderRecord()
 {
 	Name[0]=0;
 	Effect=NULL;
 	Enabled=false;
+	ParentRefID = 0xFF000000;
 }
 
 ShaderRecord::~ShaderRecord()
@@ -98,7 +102,7 @@ bool ShaderRecord::LoadShader(char *Filename)
 		return(false);
 	}
 	ApplyCompileDirectives();
-	strcpy(Filepath,NewPath);
+	strcpy(Filepath,Filename);
 	Enabled=true;
 	return(true);
 }
@@ -172,13 +176,81 @@ bool ShaderRecord::SetShaderTexture(char *name, int TextureNum)
 	return(hr==D3D_OK);
 }
 
+void ShaderRecord::SaveVars(OBSESerializationInterface *Interface)
+{
+	D3DXEFFECT_DESC Description;
+	IDirect3DTexture9 *Texture;
+
+	Effect->GetDesc(&Description);
+	_MESSAGE("Shader %s has %i parameters.",Filepath,Description.Parameters);
+	for (int par=0;par<Description.Parameters;par++)
+	{
+		D3DXHANDLE	handle;
+		handle=Effect->GetParameter(NULL,par);
+		if(handle)
+		{
+			D3DXPARAMETER_DESC Description;
+			Effect->GetParameterDesc(handle,&Description);
+			switch (Description.Type)
+			{
+			case D3DXPT_TEXTURE:
+				
+				int tex;
+				Texture=NULL;
+				
+				TextureType TextureData;
+
+				Effect->GetTexture(handle,(LPDIRECT3DBASETEXTURE9 *)&Texture);
+				tex=TextureManager::GetSingleton()->FindTexture(Texture);
+				strcpy(TextureData.Name,Description.Name);
+				if(tex>0)
+				{
+					TextureData.tex=tex;
+					Interface->WriteRecord('STEX',SHADERVERSION,&TextureData,sizeof(TextureData));
+					_MESSAGE("Found texture: name - %s, texnum - %n",TextureData.Name,tex);
+				}
+				else
+				{
+					_MESSAGE("Found texture: name - %s - not in texture list.",TextureData.Name);
+				}
+				break;
+			case D3DXPT_INT:
+				
+				IntType IntData;
+
+				IntData.size=Description.Elements;
+				if (IntData.size==0)
+					IntData.size=1;
+				Effect->GetIntArray(handle,(int *)&IntData.data,IntData.size);
+				strcpy(IntData.Name,Description.Name);
+				Interface->WriteRecord('SINT',SHADERVERSION,&IntData,sizeof(IntData));
+				_MESSAGE("Found int: name - %s, size - %i, data[0] - %i",IntData.Name,IntData.size, IntData.data[0]);
+				break;
+			case D3DXPT_FLOAT:
+
+				FloatType FloatData;
+
+				FloatData.size=Description.Elements;
+				if(FloatData.size==0)
+					FloatData.size=1;
+				Effect->GetFloatArray(handle,(float *)&FloatData.data,FloatData.size);
+				strcpy(FloatData.Name,Description.Name);
+				Interface->WriteRecord('SFLT',SHADERVERSION,&FloatData,sizeof(FloatData));
+				_MESSAGE("Found float: name - %s, size - %i, data[0] - %f",FloatData.Name,FloatData.size, FloatData.data[0]);
+				break;
+			}
+		}
+	}
+}
+
 // *********************************************************************************************************
 
 ShaderManager *ShaderManager::Singleton=NULL;
 
 ShaderManager::ShaderManager()
 {
-	DynamicShaderStart=0;
+	ShaderIndex=0;
+	MaxShaderIndex=0;
 }
 
 ShaderManager::~ShaderManager()
@@ -260,14 +332,30 @@ void ShaderManager::Render(IDirect3DDevice9 *D3DDevice,IDirect3DSurface9 *Render
 	D3DDevice->StretchRect(RenderFrom,0,TexMan->thisframeSurf,0,D3DTEXF_NONE);
 	D3DDevice->StretchRect(RenderFrom,0,RenderTo,0,D3DTEXF_NONE); // Blank screen fix when ShaderList is empty.
 	
+	if(UseShaderList.data)
+	{
+		StaticShaderList::iterator SShader=StaticShaders.begin();
+
+		while(SShader!=StaticShaders.end())
+		{
+			if((*SShader)->IsEnabled())
+			{
+				(*SShader)->ApplyConstants(&ShaderConst);
+				(*SShader)->Render(D3DDevice,RenderTo);
+				D3DDevice->StretchRect(RenderTo,0,TexMan->thisframeSurf,0,D3DTEXF_NONE);
+			}
+			SShader++;
+		}
+	}
+
 	ShaderList::iterator Shader=Shaders.begin();
 
 	while(Shader!=Shaders.end())
 	{
-		if((*Shader)->IsEnabled())
+		if(Shader->second->IsEnabled())
 		{
-			(*Shader)->ApplyConstants(&ShaderConst);
-			(*Shader)->Render(D3DDevice,RenderTo);
+			Shader->second->ApplyConstants(&ShaderConst);
+			Shader->second->Render(D3DDevice,RenderTo);
 			D3DDevice->StretchRect(RenderTo,0,TexMan->thisframeSurf,0,D3DTEXF_NONE);
 		}
 		Shader++;
@@ -289,51 +377,36 @@ void ShaderManager::RenderRAWZfix(IDirect3DDevice9* D3DDevice,IDirect3DSurface9 
 	return;
 }
 
-int ShaderManager::AddShader(char *Filename, bool AllowDuplicates)
+int ShaderManager::AddShader(char *Filename, bool AllowDuplicates, UINT32 refID)
 {
-	int pos;
+	ShaderList::iterator Shader=Shaders.begin();
 
 	if (!AllowDuplicates)
 	{
-		for(pos=DynamicShaderStart;pos<Shaders.size();pos++)
+		while(Shader!=Shaders.end())
 		{
-			if(Shaders.at(pos)->Effect)
+			if(!_stricmp(Shader->second->Filepath,Filename))
 			{
-				if(!_stricmp(Shaders.at(pos)->Filepath,Filename))
-				{
-					_MESSAGE("Loading shader that already exists. Returning index of existing shader.");
-					return(pos-DynamicShaderStart);
-				}
+				_MESSAGE("Loading shader that already exists. Returning index of existing shader.");
+				return(Shader->first);
 			}
+			Shader++;
 		}
 	}
 	
-	ShaderRecord	*NewShader=NULL;
-	bool AddToEnd=true;
+	ShaderRecord	*NewShader=new(ShaderRecord);
 
-	for(pos=0;pos<Shaders.size();pos++)
+	while(1)
 	{
-		if(!Shaders.at(pos)->Effect)
-		{
-			NewShader=Shaders.at(pos);
-			AddToEnd=false;
+		Shader=Shaders.find(ShaderIndex);
+		if (Shader==Shaders.end())
 			break;
-		}
-	}
+		ShaderIndex++;
+	} 
 
-	if(AddToEnd)
-		NewShader=new(ShaderRecord);
-	
 	if(!NewShader->LoadShader(Filename))
 	{
-		if(AddToEnd)
-			delete(NewShader);
-		else
-			if(NewShader->Effect)
-			{
-				NewShader->Effect->Release();
-				NewShader->Effect=NULL;
-			}
+		delete(NewShader);
 		return(-1);
 	}
 	
@@ -346,41 +419,49 @@ int ShaderManager::AddShader(char *Filename, bool AllowDuplicates)
 
 	NewShader->Effect->SetFloatArray("rcpres",(float*)&ShaderConst.rcpres,2);
 	NewShader->Effect->SetBool("bHasDepth",ShaderConst.bHasDepth);
-	
-	if(AddToEnd)
-		Shaders.push_back(NewShader);
 
-	Console_Print("Loaded shader number %i",pos-DynamicShaderStart);
-	return(pos-DynamicShaderStart);
+	NewShader->ParentRefID=refID;
+	
+	Shaders.insert(std::make_pair(ShaderIndex,NewShader));
+
+	Console_Print("Loaded shader number %i",ShaderIndex);
+	return(ShaderIndex++);
+}
+
+bool ShaderManager::AddStaticShader(char *Filename)
+{
+	ShaderRecord	*NewShader=NULL;
+	
+	NewShader=new(ShaderRecord);
+	
+	if(!NewShader->LoadShader(Filename))
+	{
+		delete(NewShader);
+		return(false);
+	}
+	
+	_MESSAGE("Setting effects screen texture.");
+	TextureManager	*TexMan=TextureManager::GetSingleton();
+	NewShader->Effect->SetTexture("thisframe",TexMan->thisframeTex);
+	NewShader->Effect->SetTexture("lastpass",TexMan->lastpassTex);
+	NewShader->Effect->SetTexture("lastframe",TexMan->lastframeTex);
+	NewShader->Effect->SetTexture("Depth",TexMan->depth);
+
+	NewShader->Effect->SetFloatArray("rcpres",(float*)&ShaderConst.rcpres,2);
+	NewShader->Effect->SetBool("bHasDepth",ShaderConst.bHasDepth);
+	
+	StaticShaders.push_back(NewShader);
+
+	return(true);
 }
 
 bool ShaderManager::RemoveShader(int ShaderNum)
 {
-	if((ShaderNum+DynamicShaderStart)>=Shaders.size())
-		return(false);
-	if(Shaders.at(ShaderNum+DynamicShaderStart)->Effect)
+	if(Shaders.erase(ShaderNum))
 	{
-		while(Shaders.at(ShaderNum+DynamicShaderStart)->Effect->Release()){};
-		Shaders.at(ShaderNum+DynamicShaderStart)->Effect=NULL;
-		if ((ShaderNum+DynamicShaderStart)==(Shaders.size()-1))
-			PurgeShaderList();
 		return(true);
 	}
 	return(false);
-}
-
-void ShaderManager::PurgeShaderList()
-{
-	for (int i=Shaders.size()-1;i<=0;i--)
-	{
-		if(Shaders.at(i)->Effect=NULL)
-		{
-			delete(Shaders.at(i));
-			Shaders.pop_back();
-		}
-		else
-			break;
-	}
 }
 
 void ShaderManager::InitialiseBuffers()
@@ -421,12 +502,20 @@ void ShaderManager::DeviceRelease()
 		}
 	}
 
-	ShaderList::iterator Shader=Shaders.begin();
+	StaticShaderList::iterator SShader=StaticShaders.begin();
+	while(SShader!=StaticShaders.end())
+	{
+		while((*SShader)->Effect->Release()){}
+		(*SShader)->Effect=NULL;
+		SShader++;
+	}
+	StaticShaders.clear();
 
+	ShaderList::iterator Shader=Shaders.begin();
 	while(Shader!=Shaders.end())
 	{
-		while((*Shader)->Effect->Release()){}
-		(*Shader)->Effect=NULL;
+		while(Shader->second->Effect->Release()){}
+		Shader->second->Effect=NULL;
 		Shader++;
 	}
 	Shaders.clear();
@@ -444,11 +533,19 @@ void ShaderManager::OnLostDevice()
 		}
 	}
 
+	StaticShaderList::iterator SShader=StaticShaders.begin();
+
+	while(SShader!=StaticShaders.end())
+	{
+		(*SShader)->OnLostDevice();
+		SShader++;
+	}
+
 	ShaderList::iterator Shader=Shaders.begin();
 
 	while(Shader!=Shaders.end())
 	{
-		(*Shader)->OnLostDevice();
+		Shader->second->OnLostDevice();
 		Shader++;
 	}
 }
@@ -462,14 +559,14 @@ void ShaderManager::OnResetDevice()
 	ShaderList::iterator Shader=Shaders.begin();
 	while(Shader!=Shaders.end())
 	{
-		(*Shader)->OnResetDevice();
-		(*Shader)->Effect->SetTexture("thisframe",TexMan->thisframeTex);
-		(*Shader)->Effect->SetTexture("lastpass",TexMan->lastpassTex);
-		(*Shader)->Effect->SetTexture("lastframe",TexMan->lastframeTex);
-		(*Shader)->Effect->SetTexture("Depth",TexMan->depth);
+		Shader->second->OnResetDevice();
+		Shader->second->Effect->SetTexture("thisframe",TexMan->thisframeTex);
+		Shader->second->Effect->SetTexture("lastpass",TexMan->lastpassTex);
+		Shader->second->Effect->SetTexture("lastframe",TexMan->lastframeTex);
+		Shader->second->Effect->SetTexture("Depth",TexMan->depth);
 
-		(*Shader)->Effect->SetFloatArray("rcpres",(float*)&ShaderConst.rcpres,2);
-		(*Shader)->Effect->SetBool("bHasDepth",ShaderConst.bHasDepth);
+		Shader->second->Effect->SetFloatArray("rcpres",(float*)&ShaderConst.rcpres,2);
+		Shader->second->Effect->SetBool("bHasDepth",ShaderConst.bHasDepth);
 		Shader++;
 	}
 }
@@ -480,113 +577,332 @@ void ShaderManager::LoadShaderList()
 	char ShaderBuffer[260];
 	int lastpos;
 
-	_MESSAGE("Loading the shaders.");
-	if(!fopen_s(&ShaderFile,"data\\shaders\\shaderlist.txt","rt"))
+	if(UseShaderList.data)
 	{
-		while(!feof(ShaderFile))
+		_MESSAGE("Loading the shaders.");
+		if(!fopen_s(&ShaderFile,"data\\shaders\\shaderlist.txt","rt"))
 		{
-			if(fgets(ShaderBuffer,260,ShaderFile))
+			while(!feof(ShaderFile))
 			{
-				lastpos=strlen(ShaderBuffer)-1;
-				if (ShaderBuffer[lastpos]==10||ShaderBuffer[lastpos]==13)
-					ShaderBuffer[lastpos]=0;
-				AddShader(ShaderBuffer,true);
+				if(fgets(ShaderBuffer,260,ShaderFile))
+				{
+					lastpos=strlen(ShaderBuffer)-1;
+					if (ShaderBuffer[lastpos]==10||ShaderBuffer[lastpos]==13)
+						ShaderBuffer[lastpos]=0;
+					AddStaticShader(ShaderBuffer);
+				}
 			}
+			fclose(ShaderFile);
 		}
-		fclose(ShaderFile);
-		DynamicShaderStart=Shaders.size();
+		else
+		{
+			_MESSAGE("Error opening shaderlist.txt file.");
+		}
 	}
 	else
 	{
-		_MESSAGE("Error opening shaderlist.txt file.");
-		DynamicShaderStart=0;
+		_MESSAGE("ShaderList has been disabled by the INI file.");
 	}
 }
 
 void ShaderManager::NewGame()
 {
+	StaticShaderList::iterator SShader=StaticShaders.begin();
+
+	while(SShader!=StaticShaders.end())
+	{
+		while((*SShader)->Effect->Release()){}
+		(*SShader)->Effect=NULL;
+		SShader++;
+	}
+
+	StaticShaders.clear();
+
 	ShaderList::iterator Shader=Shaders.begin();
 
 	while(Shader!=Shaders.end())
 	{
-		while((*Shader)->Effect->Release()){}
-		(*Shader)->Effect=NULL;
+		while(Shader->second->Effect->Release()){}
+		Shader->second->Effect=NULL;
 		Shader++;
 	}
+
 	Shaders.clear();
 }
 
+void ShaderManager::SaveGame(OBSESerializationInterface *Interface)
+{
+	int temp;
+
+	_MESSAGE("ShaderManager::SaveGame");
+
+	ShaderList::iterator Shader=Shaders.begin();
+
+	Interface->WriteRecord('SIDX',SHADERVERSION,&ShaderIndex,sizeof(ShaderIndex));
+	_MESSAGE("Shader index = %i",ShaderIndex);
+
+	while(Shader!=Shaders.end())
+	{
+		if(Shader->second->Effect)
+		{
+			Interface->WriteRecord('SNUM',SHADERVERSION,&Shader->first,sizeof(Shader->first));
+			Interface->WriteRecord('SPAT',SHADERVERSION,Shader->second->Filepath,strlen(Shader->second->Filepath)+1);
+			Interface->WriteRecord('SENB',SHADERVERSION,&Shader->second->Enabled,sizeof(Shader->second->Enabled));
+			Interface->WriteRecord('SREF',SHADERVERSION,&Shader->second->ParentRefID,sizeof(Shader->second->ParentRefID));
+			Shader->second->SaveVars(Interface);
+			Interface->WriteRecord('SEOD',SHADERVERSION,&temp,1);
+		}
+		Shader++;
+	}
+	Interface->WriteRecord('SEOF',SHADERVERSION,&temp,1);
+}
+
+void ShaderManager::LoadGame(OBSESerializationInterface *Interface)
+{
+	UInt32	type, version, length;
+	int LoadShaderNum;
+	char LoadFilepath[260];
+	bool LoadEnabled;
+	UInt32 LoadRefID;
+	bool InUse;
+	IDirect3DTexture9* texture;
+
+	Interface->GetNextRecordInfo(&type, &version, &length);
+
+	if (type=='SIDX')
+	{
+		Interface->ReadRecordData(&ShaderIndex,length);
+		_MESSAGE("Shader Index = %i",ShaderIndex);
+	}
+	else
+	{
+		_MESSAGE("No shader data in save file.");
+		return;
+	}
+
+	Interface->GetNextRecordInfo(&type, &version, &length);
+
+	while(type!='SEOF')
+	{
+		if(type=='SNUM')
+		{
+			Interface->ReadRecordData(&LoadShaderNum,length);
+			_MESSAGE("Shader num = %i",LoadShaderNum);
+		}
+		else
+		{
+			_MESSAGE("Error loading shader list. type!=SNUM");
+			return;
+		}
+
+		Interface->GetNextRecordInfo(&type, &version, &length);
+
+		if(type=='SPAT')
+		{
+			Interface->ReadRecordData(LoadFilepath,length);
+			_MESSAGE("Filename = %s",LoadFilepath);
+		}
+		else
+		{
+			_MESSAGE("Error loading shader list. type!=SPAT");
+			return;
+		}
+
+		Interface->GetNextRecordInfo(&type, &version, &length);
+
+		if(type=='SENB')
+		{
+			Interface->ReadRecordData(&LoadEnabled,length);
+			_MESSAGE("Enabled = %i",LoadEnabled);
+		}
+		else
+		{
+			_MESSAGE("Error loading shader list. type!=SENB");
+			return;
+		}
+
+		Interface->GetNextRecordInfo(&type, &version, &length);
+
+		if(type=='SREF')
+		{
+			Interface->ReadRecordData(&LoadRefID,length);
+			_MESSAGE("RefID = %X",LoadRefID);
+			InUse=Interface->ResolveRefID(LoadRefID,&LoadRefID);
+			_MESSAGE("Is in use = %i",InUse);
+		}
+		else
+		{
+			_MESSAGE("Error loading shader list. type!=SREF");
+			return;
+		}
+
+		ShaderRecord *NewShader=new(ShaderRecord);
+
+		if(InUse && NewShader->LoadShader(LoadFilepath))
+		{
+			NewShader->Enabled=LoadEnabled;
+			NewShader->ParentRefID=LoadRefID;
+
+		_MESSAGE("Setting effects screen texture.");
+		TextureManager	*TexMan=TextureManager::GetSingleton();
+		NewShader->Effect->SetTexture("thisframe",TexMan->thisframeTex);
+		NewShader->Effect->SetTexture("lastpass",TexMan->lastpassTex);
+		NewShader->Effect->SetTexture("lastframe",TexMan->lastframeTex);
+		NewShader->Effect->SetTexture("Depth",TexMan->depth);
+
+		NewShader->Effect->SetFloatArray("rcpres",(float*)&ShaderConst.rcpres,2);
+		NewShader->Effect->SetBool("bHasDepth",ShaderConst.bHasDepth);
+
+	
+			Interface->GetNextRecordInfo(&type, &version, &length);
+
+			while(type!='SEOD')
+			{
+				switch(type)
+				{
+				case 'STEX':
+					TextureType TextureData;
+
+					Interface->ReadRecordData(&TextureData,length);
+
+					NewShader->SetShaderTexture(TextureData.Name,TextureData.tex);
+					_MESSAGE("Texture %s = %i",TextureData.Name,TextureData.tex);
+					break;
+				case 'SINT':
+					IntType IntData;
+
+					Interface->ReadRecordData(&IntData,length);
+
+					NewShader->Effect->SetIntArray(IntData.Name,(int *)&IntData.data,IntData.size);
+					_MESSAGE("Int %s = %i(%i)",IntData.Name,IntData.data[0],IntData.size);
+					break;
+				case 'SFLT':
+					FloatType FloatData;
+
+					Interface->ReadRecordData(&FloatData,length);
+
+					NewShader->Effect->SetFloatArray(FloatData.Name, (float *)&FloatData.data, FloatData.size);
+					_MESSAGE("Float %s = %f(%i)",FloatData.Name, FloatData.data[0], FloatData.size);
+					break;
+				}
+				Interface->GetNextRecordInfo(&type, &version, &length);
+			}
+			Shaders.insert(std::make_pair(LoadShaderNum,NewShader));
+			_MESSAGE("Inserting the shader into the list.");
+		}
+		else
+		{
+			delete(NewShader);
+			
+			Interface->GetNextRecordInfo(&type, &version, &length);
+
+			while(type!='SEOD')
+			{
+				Interface->ReadRecordData(&LoadFilepath,length);
+				Interface->GetNextRecordInfo(&type, &version, &length);
+			}
+		}
+		Interface->GetNextRecordInfo(&type,&version,&length);
+	}
+}
+		
 bool ShaderManager::IsShaderValid(int ShaderNum)
 {
-	if((ShaderNum+DynamicShaderStart)>=Shaders.size())
-		return(false);
-	if(!Shaders.at(ShaderNum+DynamicShaderStart)->Effect)
+	if(Shaders.find(ShaderNum)==Shaders.end())
 		return(false);
 	return(true);
 }
 
 bool ShaderManager::EnableShader(int ShaderNum, bool State)
 {
-	if(!IsShaderValid(ShaderNum))
-		return(false);
-	Shaders.at(ShaderNum+DynamicShaderStart)->Enabled=State;
-	return(true);
+	ShaderList::iterator Shader;
+	
+	Shader=Shaders.find(ShaderNum);
+	if(Shader!=Shaders.end())
+	{
+		Shader->second->Enabled=State;
+		return(true);
+	}
+	return(false);
 }
 
 bool ShaderManager::SetShaderInt(int ShaderNum, char *name, int value)
 {
-	if(!IsShaderValid(ShaderNum))
-		return(false);
-	return(Shaders.at(ShaderNum+DynamicShaderStart)->SetShaderInt(name,value));
+	ShaderList::iterator Shader;
+	
+	Shader=Shaders.find(ShaderNum);
+	if(Shader!=Shaders.end())
+	{
+		return(Shader->second->SetShaderInt(name,value));
+	}
+	return(false);
 }
 
 bool ShaderManager::SetShaderFloat(int ShaderNum, char *name, float value)
 {
-	if(!IsShaderValid(ShaderNum))
-		return(false);
-	return(Shaders.at(ShaderNum+DynamicShaderStart)->SetShaderFloat(name,value));
+	ShaderList::iterator Shader;
+	
+	Shader=Shaders.find(ShaderNum);
+	if(Shader!=Shaders.end())
+	{
+		return(Shader->second->SetShaderFloat(name,value));
+	}
+	return(false);
 }
 
 bool ShaderManager::SetShaderVector(int ShaderNum, char *name, v1_2_416::NiVector4 *value)
 {
-	if(!IsShaderValid(ShaderNum))
-		return(false);
-	return(Shaders.at(ShaderNum+DynamicShaderStart)->SetShaderVector(name,value));
+	ShaderList::iterator Shader;
+	
+	Shader=Shaders.find(ShaderNum);
+	if(Shader!=Shaders.end())
+	{
+		return(Shader->second->SetShaderVector(name,value));
+	}
+	return(false);
 }
 
 bool ShaderManager::SetShaderTexture(int ShaderNum, char *name, int TextureNum)
 {
-	if(!IsShaderValid(ShaderNum))
-		return(false);
-	return(Shaders.at(ShaderNum+DynamicShaderStart)->SetShaderTexture(name,TextureNum));
+	ShaderList::iterator Shader;
+	
+	Shader=Shaders.find(ShaderNum);
+	if(Shader!=Shaders.end())
+	{
+		return(Shader->second->SetShaderTexture(name,TextureNum));
+	}
+	return(false);
 }
 
 void ShaderManager::PurgeTexture(IDirect3DTexture9 *texture)
 {
-	for(int i=DynamicShaderStart;i<Shaders.size();i++)
+	ShaderList::iterator Shader=Shaders.begin();
+
+	while(Shader!=Shaders.end())
 	{
 		D3DXEFFECT_DESC Description;
-		Shaders[i]->Effect->GetDesc(&Description);
+		Shader->second->Effect->GetDesc(&Description);
 		for (int par=0;par<Description.Parameters;par++)
 		{
 			D3DXHANDLE	handle;
-			handle=Shaders[i]->Effect->GetParameter(NULL,par);
+			handle=Shader->second->Effect->GetParameter(NULL,par);
 			if(handle)
 			{
 				D3DXPARAMETER_DESC Description;
-				Shaders[i]->Effect->GetParameterDesc(handle,&Description);
+				Shader->second->Effect->GetParameterDesc(handle,&Description);
 				if(Description.Type=D3DXPT_TEXTURE)
 				{
 					IDirect3DBaseTexture9 *ShaderTexture=NULL;				// NB must set to NULL otherwise strange things happen
-					Shaders[i]->Effect->GetTexture(handle,&ShaderTexture);
+					Shader->second->Effect->GetTexture(handle,&ShaderTexture);
 					if(ShaderTexture==texture)
 					{
-						Shaders[i]->Effect->SetTexture(handle,NULL);
-						_MESSAGE("Removing texture %s from shader %i",Description.Name,i-DynamicShaderStart);
+						Shader->second->Effect->SetTexture(handle,NULL);
+						_MESSAGE("Removing texture %s from shader %i",Description.Name,Shader->first);
 					}
 					
 				}
 			}
 		}
+		Shader++;
 	}
 }

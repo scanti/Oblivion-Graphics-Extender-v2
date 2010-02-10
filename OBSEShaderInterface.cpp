@@ -8,8 +8,12 @@
 #include "nodes/NiVector4.h"
 #include "ScreenElements.h"
 #include "TextureManager.h"
+#include "GlobalSettings.h"
 
 #pragma warning(disable : 4996)
+
+static global<bool> UseSave(true,NULL,"Serialization","bSaveData");
+static global<bool> UseLoad(true,NULL,"Serialization","bLoadData");
 
 // Uses code from OBGE by Timeslip.
 
@@ -157,7 +161,7 @@ void OBSEShaderInterface::DeviceRelease()
 		pFont2=NULL;
 	}
 
-	delete MemoryDumpString;
+	//delete MemoryDumpString;
 }
 
 void OBSEShaderInterface::InitialiseShader(void)
@@ -205,7 +209,7 @@ void OBSEShaderInterface::InitialiseShader(void)
 	TextureManager::GetSingleton()->InitialiseFrameTextures();
 	ShaderManager::GetSingleton()->LoadShaderList();
 
-	MemoryDumpString=new TextBuffer(10000);
+	//MemoryDumpString=new TextBuffer(10000);
 
 	return;
 }
@@ -215,4 +219,31 @@ void OBSEShaderInterface::NewGame()
 	TextureManager::GetSingleton()->NewGame();
 	ShaderManager::GetSingleton()->NewGame();
 	ShaderManager::GetSingleton()->LoadShaderList();	
+}
+
+void OBSEShaderInterface::LoadGame(OBSESerializationInterface *Interface)
+{
+	NewGame();
+	if(UseLoad.data)
+	{
+		TextureManager::GetSingleton()->LoadGame(Interface);
+		ShaderManager::GetSingleton()->LoadGame(Interface);
+	}
+	else
+	{
+		_MESSAGE("Loading disabled in INI file.");
+	}
+}
+
+void OBSEShaderInterface::SaveGame(OBSESerializationInterface *Interface)
+{
+	if(UseSave.data)
+	{
+		TextureManager::GetSingleton()->SaveGame(Interface);
+		ShaderManager::GetSingleton()->SaveGame(Interface);
+	}
+	else
+	{
+		_MESSAGE("Saving disabled in INI file.");
+	}
 }

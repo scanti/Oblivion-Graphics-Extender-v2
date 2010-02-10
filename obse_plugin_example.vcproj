@@ -142,7 +142,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="d3dx9.lib"
+				AdditionalDependencies="d3dx9.lib shlwapi.lib"
 				LinkIncremental="1"
 				ModuleDefinitionFile="exports.def"
 				GenerateDebugInformation="true"
@@ -553,6 +553,14 @@
 		</File>
 		<File
 			RelativePath=".\exports.def"
+			>
+		</File>
+		<File
+			RelativePath=".\GlobalSettings.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\GlobalSettings.h"
 			>
 		</File>
 		<File

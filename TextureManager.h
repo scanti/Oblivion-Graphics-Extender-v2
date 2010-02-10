@@ -1,10 +1,13 @@
 #pragma once
 
+#include "obse\PluginAPI.h"
 #include "d3dx9.h"
 #include <vector>
 #include "DepthBufferHook.h"
 #include "Rendering.h"
 #include "nodes\NiDX9Renderer.h"
+
+#define TEXTUREVERSION 1
 
 class TextureRecord
 {
@@ -46,10 +49,13 @@ public:
 	int						LoadTexture(char *Filename,DWORD FromFile);
 	StaticTextureRecord*	LoadStaticTexture(char *Filename);
 	void					NewGame(void);
+	void					LoadGame(OBSESerializationInterface *Interface);
+	void					SaveGame(OBSESerializationInterface *Interface);
 	bool					IsValidTexture(int TextureNum);
 	IDirect3DTexture9*		GetTexture(int TextureNum);
 	void					ReleaseTexture(IDirect3DTexture9* texture);
 	void					FreeTexture(int index);
+	int						FindTexture(IDirect3DTexture9* texture);
 
 	TextureList				Textures;
 	StaticTextureList		StaticTextures;
