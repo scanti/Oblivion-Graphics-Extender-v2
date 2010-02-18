@@ -19,13 +19,13 @@
 
 #define EXTRACTARGS paramInfo, arg1, opcodeOffsetPtr, thisObj, arg3, scriptObj, eventList
 
-//global<int> testglobal(1234,NULL,"test","iTest");
-
+#define VERSION 2
 
 IDebugLog	gLog("OBGEv2.log");
 
 PluginHandle				g_pluginHandle = kPluginHandle_Invalid;
 OBSESerializationInterface	* g_serialization = NULL;
+
 
 int *PixelShaderVersion = (int *)0x00B42F48;
 int *UseHDR = (int *)0x00B43070;
@@ -123,52 +123,12 @@ static void SaveCallback(void * reserved)
 {
 	_MESSAGE("Saving a game.");
 	OBSEShaderInterface::GetSingleton()->SaveGame(g_serialization);
-	/*
-	// write out the string
-	g_serialization->OpenRecord('STR ', 0);
-	g_serialization->WriteRecordData(g_strData.c_str(), g_strData.length());
-
-	// write out some other data
-	g_serialization->WriteRecord('ASDF', 1234, "hello world", 11);
-	*/
 }
 
 static void LoadCallback(void * reserved)
 {
 	_MESSAGE("Loading a game.");
 	OBSEShaderInterface::GetSingleton()->LoadGame(g_serialization);
-
-	/*
-	UInt32	type, version, length;
-
-	ResetData();
-
-	char	buf[512];
-
-	while(g_serialization->GetNextRecordInfo(&type, &version, &length))
-	{
-		_MESSAGE("record %08X (%.4s) %08X %08X", type, &type, version, length);
-
-		switch(type)
-		{
-			case 'STR ':
-				g_serialization->ReadRecordData(buf, length);
-				buf[length] = 0;
-
-				_MESSAGE("got string %s", buf);
-
-				g_strData = buf;
-				break;
-
-			case 'ASDF':
-				g_serialization->ReadRecordData(buf, length);
-				buf[length] = 0;
-
-				_MESSAGE("ASDF chunk = %s", buf);
-				break;
-		}
-	}
-	*/
 }
 
 static void NewGameCallback(void * reserved)
@@ -252,7 +212,7 @@ bool OBSEPlugin_Query(const OBSEInterface * obse, PluginInfo * info)
 	// fill out the info structure
 	info->infoVersion = PluginInfo::kInfoVersion;
 	info->name = "OBGEv2";
-	info->version = 1;
+	info->version = VERSION;
 
 	// version checks
 	if(!obse->isEditor)
@@ -319,13 +279,6 @@ bool OBSEPlugin_Load(const OBSEInterface * obse)
 	obse->RegisterCommand(&kCommandInfo_SetHUDElementScale);
 	obse->RegisterCommand(&kCommandInfo_SetHUDElementRotation);
 	obse->RegisterCommand(&kCommandInfo_PurgeManagedTextures);
-
-// Reserved opcode range 0x2590 - 0x259F
-
-	obse->SetOpcodeBase(0x259E);
-	//obse->RegisterCommand(&kAlpha2Coverage);
-	obse->RegisterCommand(&kShowDebugInfo);
-	obse->RegisterCommand(&kShowMemoryDump);
 	
 // We don't want to hook the construction set.
 
@@ -337,6 +290,7 @@ bool OBSEPlugin_Load(const OBSEInterface * obse)
 
 		// register to receive messages from OBSE
 		OBSEMessagingInterface* msgIntfc = (OBSEMessagingInterface*)obse->QueryInterface(kInterface_Messaging);
+		SetMessaging(msgIntfc,g_pluginHandle);
 		msgIntfc->RegisterListener(g_pluginHandle, "OBSE", MessageHandler);
 
 		g_serialization->SetSaveCallback(g_pluginHandle, SaveCallback);

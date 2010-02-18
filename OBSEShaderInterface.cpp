@@ -14,6 +14,7 @@
 
 static global<bool> UseSave(true,NULL,"Serialization","bSaveData");
 static global<bool> UseLoad(true,NULL,"Serialization","bLoadData");
+static global<bool> EnableInterOp(false,NULL,"PluginInterOp","bEnableInterOp");
 
 // Uses code from OBGE by Timeslip.
 
@@ -70,16 +71,39 @@ OBSEShaderInterface	*OBSEShaderInterface::GetSingleton()
 void OBSEShaderInterface::ShaderCode(IDirect3DDevice9 *D3DDevice,IDirect3DSurface9 *RenderTo, IDirect3DSurface9 *RenderFrom, DeviceInfo *Info)
 {
 
-	HRESULT	hr;
+	//HRESULT	hr;
 
 	ShaderManager* ShaderMan=ShaderManager::GetSingleton();
 	ShaderMan->UpdateFrameConstants();
 	ShaderMan->Render(D3DDevice,RenderTo,RenderFrom);
 
 	HUDManager::GetSingleton()->Render();
+/*	
+	if(EnableInterOp.data)
+	{
+		struct INTEROP {
+			UInt32		version;
+			IDirect3DDevice9 *D3DDevice;
+			IDirect3DSurface9 *RenderTo;
+			UInt32		width;
+			UInt32		height;
+			D3DCAPS9	*DeviceCaps;
+		} InterOp;
+		
+		InterOp.version=1;
+		InterOp.D3DDevice=D3DDevice;
+		InterOp.RenderTo=RenderTo;
+		InterOp.width=Info->Width;
+		InterOp.height=Info->Height;
+		InterOp.DeviceCaps=Info->Caps;
+
+		GetMessaging()->Dispatch(GetHandle(),'REND',(void *)&InterOp,sizeof(InterOp),NULL);
+	}
+*/
 
 // I'll keep the font stuff in as I might need it later for debugging purposes.
 
+/*
 	if (!pFont)
 	{
 		hr=D3DXCreateFontIndirectA(D3DDevice,&FontDescription,&pFont);
@@ -99,7 +123,7 @@ void OBSEShaderInterface::ShaderCode(IDirect3DDevice9 *D3DDevice,IDirect3DSurfac
 			return;
 		}
 	}
-
+*/
 	return;
 }
 
@@ -246,4 +270,21 @@ void OBSEShaderInterface::SaveGame(OBSESerializationInterface *Interface)
 	{
 		_MESSAGE("Saving disabled in INI file.");
 	}
+}
+
+void SetMessaging(OBSEMessagingInterface *Interface,PluginHandle Handle)
+{
+	messanger=Interface;
+	handle=Handle;
+	return;
+}
+
+OBSEMessagingInterface	*GetMessaging(void)
+{
+	return(messanger);
+}
+
+PluginHandle GetHandle(void)
+{
+	return(handle);
 }

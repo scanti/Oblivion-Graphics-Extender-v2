@@ -3,6 +3,7 @@
 #include "GlobalSettings.h"
 
 static global<bool> UseShaderList(true,NULL,"Shaders","bUseShaderList");
+static global<char*> ShaderListFile("data\\shaders\\shaderlist.txt",NULL,"Shaders","sShaderListFile");
 
 ShaderRecord::ShaderRecord()
 {
@@ -362,6 +363,7 @@ void ShaderManager::Render(IDirect3DDevice9 *D3DDevice,IDirect3DSurface9 *Render
 	}
 	
 	D3DDevice->StretchRect(RenderTo,0,TexMan->lastframeSurf,0,D3DTEXF_NONE);
+
 	return;
 }
 
@@ -385,7 +387,7 @@ int ShaderManager::AddShader(char *Filename, bool AllowDuplicates, UINT32 refID)
 	{
 		while(Shader!=Shaders.end())
 		{
-			if(!_stricmp(Shader->second->Filepath,Filename))
+			if(!_stricmp(Shader->second->Filepath,Filename)&&((Shader->second->ParentRefID&0xff000000)==(refID&0xff000000)))
 			{
 				_MESSAGE("Loading shader that already exists. Returning index of existing shader.");
 				return(Shader->first);
@@ -580,7 +582,7 @@ void ShaderManager::LoadShaderList()
 	if(UseShaderList.data)
 	{
 		_MESSAGE("Loading the shaders.");
-		if(!fopen_s(&ShaderFile,"data\\shaders\\shaderlist.txt","rt"))
+		if(!fopen_s(&ShaderFile,ShaderListFile.Get(),"rt"))
 		{
 			while(!feof(ShaderFile))
 			{
@@ -665,7 +667,6 @@ void ShaderManager::LoadGame(OBSESerializationInterface *Interface)
 	bool LoadEnabled;
 	UInt32 LoadRefID;
 	bool InUse;
-	IDirect3DTexture9* texture;
 
 	Interface->GetNextRecordInfo(&type, &version, &length);
 
@@ -727,8 +728,16 @@ void ShaderManager::LoadGame(OBSESerializationInterface *Interface)
 		{
 			Interface->ReadRecordData(&LoadRefID,length);
 			_MESSAGE("RefID = %X",LoadRefID);
-			InUse=Interface->ResolveRefID(LoadRefID,&LoadRefID);
-			_MESSAGE("Is in use = %i",InUse);
+			if (LoadRefID==0)
+			{
+				_MESSAGE("NULL refID. Will load shader as I can't resolve it's state.");
+				InUse=true;
+			}
+			else
+			{
+				InUse=Interface->ResolveRefID(LoadRefID,&LoadRefID);
+				_MESSAGE("Is in use = %i",InUse);
+			}
 		}
 		else
 		{

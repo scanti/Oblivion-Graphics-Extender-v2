@@ -53,3 +53,10 @@ static pSpoofShaderList *obImageSpaceShaderList=(pSpoofShaderList *)0x00B42D7C;
 static void (*obAddImageSpaceShader)(SpoofShader *)=(void(*)(SpoofShader *))0x00803790;
 
 bool LostDevice(bool stage,void *parameters);
+
+static OBSEMessagingInterface* messanger=NULL;
+static PluginHandle handle = kPluginHandle_Invalid;
+
+void SetMessaging(OBSEMessagingInterface *Interface, PluginHandle Handle);
+OBSEMessagingInterface	*GetMessaging(void);
+PluginHandle			GetHandle(void);

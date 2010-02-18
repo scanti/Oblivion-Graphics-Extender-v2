@@ -1,6 +1,7 @@
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
-// Used by DepthTest.rc
+// Used by OBGEv2.rc
+//
 
 // Next default values for new objects
 // 

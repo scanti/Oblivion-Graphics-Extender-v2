@@ -13,7 +13,7 @@ static bool LoadShader_Execute(COMMAND_ARGS)
 
 	if(!ExtractArgs(EXTRACTARGS, &path, &AllowDuplicates)) return true;
 
-	_MESSAGE("Shader (%s) - Script refID = %x",path,scriptObj->refID);
+	_MESSAGE("Shader (%s) - Script refID = %x %s",path,scriptObj->refID,(scriptObj->refID==0)?"(Error NULL refID)":" ");
 
 	*result = ShaderManager::GetSingleton()->AddShader(path,AllowDuplicates!=0,scriptObj->refID);
 
@@ -133,7 +133,7 @@ CommandInfo kCommandInfo_ApplyFullscreenShader =
 	"Applies a fullscreen shader to oblivion",
 	0,
 	2,
-	kParams_TwoInt,
+	kParams_OneIntOneOptInt,
 	ApplyFullscreenShader_Execute,
 	0,
 	0,
