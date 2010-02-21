@@ -4,6 +4,7 @@
 
 static global<bool> UseShaderList(true,NULL,"Shaders","bUseShaderList");
 static global<char*> ShaderListFile("data\\shaders\\shaderlist.txt",NULL,"Shaders","sShaderListFile");
+static global<bool> UseLegacyCompiler(false,NULL,"Shaders","bUseLegacyCompiler");
 
 ShaderRecord::ShaderRecord()
 {
@@ -70,6 +71,8 @@ bool ShaderRecord::IsEnabled()
 
 bool ShaderRecord::LoadShader(char *Filename)
 {
+	HRESULT hr;
+
 	if(Effect)
 	{
 		while(Effect->Release()){};
@@ -86,10 +89,22 @@ bool ShaderRecord::LoadShader(char *Filename)
 	_MESSAGE("Loading shader (%s)",NewPath);
 
 	LPD3DXBUFFER pCompilationErrors=0;
-	HRESULT hr=D3DXCreateEffectFromFileA(GetD3DDevice(),NewPath,0,0,D3DXFX_NOT_CLONEABLE,0,&Effect,&pCompilationErrors);
-	if(hr!=D3D_OK) 
+	if(UseLegacyCompiler.data)
+		hr=D3DXCreateEffectFromFileA(GetD3DDevice(),NewPath,0,0,D3DXFX_NOT_CLONEABLE|D3DXSHADER_USE_LEGACY_D3DX9_31_DLL,0,&Effect,&pCompilationErrors);
+	else
+		hr=D3DXCreateEffectFromFileA(GetD3DDevice(),NewPath,0,0,D3DXFX_NOT_CLONEABLE,0,&Effect,&pCompilationErrors);
+	
+	if(hr!=D3D_OK && pCompilationErrors && !UseLegacyCompiler.data) 
 	{
-		if(pCompilationErrors) 
+		pCompilationErrors->Release();
+		pCompilationErrors=NULL;
+		_MESSAGE("Shader compilation errors occured - trying legacy compiler.");
+		hr=D3DXCreateEffectFromFileA(GetD3DDevice(),NewPath,0,0,D3DXFX_NOT_CLONEABLE|D3DXSHADER_USE_LEGACY_D3DX9_31_DLL,0,&Effect,&pCompilationErrors);
+	}
+
+	if (hr!=D3D_OK)
+	{
+		if(pCompilationErrors)
 		{
 			_MESSAGE("Shader compilation errors occured");
 			_MESSAGE(Filename);
@@ -100,8 +115,9 @@ bool ShaderRecord::LoadShader(char *Filename)
 		{
 			_MESSAGE("Failed to load.");
 		}
-		return(false);
+	return(false);
 	}
+
 	ApplyCompileDirectives();
 	strcpy(Filepath,Filename);
 	Enabled=true;
