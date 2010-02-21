@@ -26,7 +26,7 @@ void ShaderRecord::Render(IDirect3DDevice9*	D3DDevice,IDirect3DSurface9 *RenderT
 		return;
 	UINT passes;
 
-	Effect->Begin(&passes,0);
+	Effect->Begin(&passes,D3DXFX_DONOTSAVESTATE);
 	UINT pass=0;
 	while(true)
 	{
