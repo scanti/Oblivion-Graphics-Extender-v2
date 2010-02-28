@@ -60,3 +60,4 @@ static PluginHandle handle = kPluginHandle_Invalid;
 void SetMessaging(OBSEMessagingInterface *Interface, PluginHandle Handle);
 OBSEMessagingInterface	*GetMessaging(void);
 PluginHandle			GetHandle(void);
+bool IsEnabled();

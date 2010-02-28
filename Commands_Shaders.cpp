@@ -3,6 +3,7 @@
 #include "Commands_Params.h"
 #include "ShaderManager.h"
 #include "Script.h"
+#include "OBSEShaderInterface.h"
 
 static bool LoadShader_Execute(COMMAND_ARGS)
 {
@@ -13,9 +14,11 @@ static bool LoadShader_Execute(COMMAND_ARGS)
 
 	if(!ExtractArgs(EXTRACTARGS, &path, &AllowDuplicates)) return true;
 
-	_MESSAGE("Shader (%s) - Script refID = %x %s",path,scriptObj->refID,(scriptObj->refID==0)?"(Error NULL refID)":" ");
-
-	*result = ShaderManager::GetSingleton()->AddShader(path,AllowDuplicates!=0,scriptObj->refID);
+	if(IsEnabled())
+	{
+		_MESSAGE("Shader (%s) - Script refID = %x %s",path,scriptObj->refID,(scriptObj->refID==0)?"(Error NULL refID)":" ");
+		*result = ShaderManager::GetSingleton()->AddShader(path,AllowDuplicates!=0,scriptObj->refID);
+	}
 
 	return true;
 }
@@ -27,7 +30,7 @@ static bool ApplyFullscreenShader_Execute(COMMAND_ARGS)
 	DWORD id, HUD;
 	if(!ExtractArgs(EXTRACTARGS, &id, &HUD)) return true;
 
-	if(!ShaderManager::GetSingleton()->EnableShader(id,true))
+	if(!IsEnabled() || !ShaderManager::GetSingleton()->EnableShader(id,true))
 		*result=-1;
 
 	return true;
@@ -41,18 +44,23 @@ static bool RemoveFullscreenShader_Execute(COMMAND_ARGS)
 
 	if(!ExtractArgs(EXTRACTARGS, &id, &Delete)) return true;
 	
-	if(!Delete)
+	if(IsEnabled())
 	{
-		if(!ShaderManager::GetSingleton()->EnableShader(id,false))
+		if(!Delete)
 		{
-			*result=-1;
+			if(!ShaderManager::GetSingleton()->EnableShader(id,false))
+			{
+				*result=-1;
+			}
 		}
+		else
+			if(!ShaderManager::GetSingleton()->RemoveShader(id))
+			{
+				*result=-1;
+			}
 	}
 	else
-		if(!ShaderManager::GetSingleton()->RemoveShader(id))
-		{
-			*result=-1;
-		}
+		*result=-1;
 	return true;
 }
 
@@ -65,7 +73,8 @@ static bool SetShaderInt_Execute(COMMAND_ARGS)
 	int i;
 	if(!ExtractArgs(EXTRACTARGS, &id, &var, &i)) return true;
 
-	ShaderManager::GetSingleton()->SetShaderInt(id,var,i);
+	if(IsEnabled())
+		ShaderManager::GetSingleton()->SetShaderInt(id,var,i);
 
 	return true;
 }
@@ -78,7 +87,8 @@ static bool SetShaderFloat_Execute(COMMAND_ARGS)
 	float f;
 	if(!ExtractArgs(EXTRACTARGS, &id, &var, &f)) return true;
 
-	ShaderManager::GetSingleton()->SetShaderFloat(id,var,f);
+	if(IsEnabled())
+		ShaderManager::GetSingleton()->SetShaderFloat(id,var,f);
 	
 
 	return true;
@@ -92,7 +102,8 @@ static bool SetShaderVector_Execute(COMMAND_ARGS)
 	v1_2_416::NiVector4 v;
 	if(!ExtractArgs(EXTRACTARGS, &id, &var, &v[0], &v[1], &v[2], &v[3])) return true;
 
-	ShaderManager::GetSingleton()->SetShaderVector(id,var,&v);
+	if(IsEnabled())
+		ShaderManager::GetSingleton()->SetShaderVector(id,var,&v);
 	
 	return true;
 }
@@ -105,7 +116,8 @@ static bool SetShaderTexture_Execute(COMMAND_ARGS)
 	DWORD i;
 	if(!ExtractArgs(EXTRACTARGS, &id, &var, &i)) return true;
 
-	ShaderManager::GetSingleton()->SetShaderTexture(id,var,i);
+	if(IsEnabled())
+		ShaderManager::GetSingleton()->SetShaderTexture(id,var,i);
 
 	return true;
 }

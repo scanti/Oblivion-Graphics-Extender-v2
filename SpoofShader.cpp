@@ -293,9 +293,16 @@ void SpoofShader::RenderShader(void *ScreenElements, TextureLink *RenderedTextur
 		D3DDevice->GetRenderTarget(0,&RenderTarget);
 
 		SourceTexture=RenderedTexture->RenderedTexture->RenderTargets->GetRenderTargetData(0)->surface;
-
-		Info.Height=RenderedTexture->RenderedTexture->RenderTargets->GetHeight(0);
-		Info.Width=RenderedTexture->RenderedTexture->RenderTargets->GetWidth(0);
+		if(UseAltRenderTarget)
+		{
+			Info.Height=AltRenderTarget->RenderedTexture->RenderTargets->GetHeight(0);
+			Info.Width=AltRenderTarget->RenderedTexture->RenderTargets->GetWidth(0);
+		}
+		else
+		{
+			Info.Height=RenderedTexture->RenderedTexture->RenderTargets->GetHeight(0);
+			Info.Width=RenderedTexture->RenderedTexture->RenderTargets->GetWidth(0);
+		}
 		Info.AltRenderTarget=UseAltRenderTarget;
 		Info.Caps=&v1_2_416::GetRenderer()->DeviceCaps;
 

@@ -16,6 +16,7 @@ static global<bool> UseSave(true,NULL,"Serialization","bSaveData");
 static global<bool> UseLoad(true,NULL,"Serialization","bLoadData");
 static global<bool> EnableInterOp(false,NULL,"PluginInterOp","bEnableInterOp");
 static global<bool> SaveFix(false,NULL,"Shaders","bNoShadersInMenus");
+static global<bool> Enabled(true,NULL,"General","bEnabled");
 
 // Uses code from OBGE by Timeslip.
 
@@ -74,12 +75,16 @@ void OBSEShaderInterface::ShaderCode(IDirect3DDevice9 *D3DDevice,IDirect3DSurfac
 
 	//HRESULT	hr;
 	
-	if(Info->AltRenderTarget && SaveFix.data)
+	if(Info->AltRenderTarget)
+		_MESSAGE("width = %i, height = %i",Info->Width,Info->Height);
+	
+	if(Info->AltRenderTarget && (SaveFix.data || (Info->Height==256 && Info->Width==256)))
 	{
 		D3DDevice->StretchRect(RenderFrom,0,RenderTo,0,D3DTEXF_NONE);
 		return;
 	}
 
+	
 	ShaderManager* ShaderMan=ShaderManager::GetSingleton();
 	ShaderMan->UpdateFrameConstants();
 	ShaderMan->Render(D3DDevice,RenderTo,RenderFrom);
@@ -254,15 +259,18 @@ void OBSEShaderInterface::NewGame()
 
 void OBSEShaderInterface::LoadGame(OBSESerializationInterface *Interface)
 {
-	NewGame();
-	if(UseLoad.data)
+	if(IsEnabled())
 	{
-		TextureManager::GetSingleton()->LoadGame(Interface);
-		ShaderManager::GetSingleton()->LoadGame(Interface);
-	}
-	else
-	{
-		_MESSAGE("Loading disabled in INI file.");
+		NewGame();
+		if(UseLoad.data)
+		{
+			TextureManager::GetSingleton()->LoadGame(Interface);
+			ShaderManager::GetSingleton()->LoadGame(Interface);
+		}
+		else
+		{
+			_MESSAGE("Loading disabled in INI file.");
+		}
 	}
 }
 
@@ -294,4 +302,9 @@ OBSEMessagingInterface	*GetMessaging(void)
 PluginHandle GetHandle(void)
 {
 	return(handle);
+}
+
+bool IsEnabled()
+{
+	return(Enabled.data);
 }

@@ -333,7 +333,7 @@ void ShaderManager::Render(IDirect3DDevice9 *D3DDevice,IDirect3DSurface9 *Render
 	UpdateFrameConstants();
 
 	TextureManager* TexMan=TextureManager::GetSingleton();
-
+	
 	if(TexMan->RAWZflag)
 	{
 		D3DDevice->EndScene();
@@ -344,7 +344,6 @@ void ShaderManager::Render(IDirect3DDevice9 *D3DDevice,IDirect3DSurface9 *Render
 		D3DDevice->SetRenderTarget(0,RenderTo);
 		D3DDevice->BeginScene();
 	}
-
 
 	D3DDevice->StretchRect(RenderFrom,0,TexMan->thisframeSurf,0,D3DTEXF_NONE);
 	D3DDevice->StretchRect(RenderFrom,0,RenderTo,0,D3DTEXF_NONE); // Blank screen fix when ShaderList is empty.

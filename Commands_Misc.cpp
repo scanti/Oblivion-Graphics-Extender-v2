@@ -2,6 +2,7 @@
 #include "Commands_Params.h"
 #include "nodes\NiDX9Renderer.h"
 #include "Rendering.h"
+#include "OBSEShaderInterface.h"
 
 void NotImplemented(void)
 {
@@ -11,13 +12,16 @@ void NotImplemented(void)
 
 static bool GetAvailableGraphicsMemory_Execute(COMMAND_ARGS)
 {
-	*result = GetD3DDevice()->GetAvailableTextureMem();
+	if(IsEnabled())
+		*result = GetD3DDevice()->GetAvailableTextureMem();
+	else
+		*result=0;
 	return true;
 }
 static bool GetScreenWidth_Execute(COMMAND_ARGS)
 {
 	v1_2_416::NiDX9Renderer *renderer=v1_2_416::GetRenderer();
-	if(renderer)
+	if(renderer && IsEnabled())
 	{
 		*result = renderer->SizeWidth;
 	}
@@ -31,7 +35,7 @@ static bool GetScreenWidth_Execute(COMMAND_ARGS)
 static bool GetScreenHeight_Execute(COMMAND_ARGS)
 {
 	v1_2_416::NiDX9Renderer *renderer=v1_2_416::GetRenderer();
-	if(renderer)
+	if(renderer && IsEnabled())
 	{
 		*result = renderer->SizeHeight;
 	}
@@ -50,7 +54,8 @@ static bool ForceGraphicsReset_Execute(COMMAND_ARGS)
 }
 static bool PurgeManagedTextures_Execute(COMMAND_ARGS)
 {
-	GetD3DDevice()->EvictManagedResources();
+	if(IsEnabled())
+		GetD3DDevice()->EvictManagedResources();
 	*result=0;
 	return true;
 }

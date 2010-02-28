@@ -2,12 +2,15 @@
 #include "Commands_Misc.h"
 #include "Commands_Params.h"
 #include "ScreenElements.h"
+#include "OBSEShaderInterface.h"
 
 static bool CreateHUDElement_Execute(COMMAND_ARGS)
 {
-	Sprite	*TempSprite=new(Sprite);
-	*result = HUDManager::GetSingleton()->AddScreenElement(TempSprite);
-	
+	if(IsEnabled())
+	{
+		Sprite	*TempSprite=new(Sprite);
+		*result = HUDManager::GetSingleton()->AddScreenElement(TempSprite);
+	}
 	return true;
 }
 
@@ -19,7 +22,8 @@ static bool SetHUDElementTexture_Execute(COMMAND_ARGS)
 	int tex;
 	if(!ExtractArgs(EXTRACTARGS, &id, &tex)) return true;
 
-	HUDManager::GetSingleton()->index(id)->SetTexture(tex);
+	if(IsEnabled())
+		HUDManager::GetSingleton()->index(id)->SetTexture(tex);
 
 	return true;
 }
@@ -31,7 +35,8 @@ static bool SetHUDElementColour_Execute(COMMAND_ARGS)
 	float r, g, b;
 	if(!ExtractArgs(EXTRACTARGS, &id, &r, &g, &b)) return true;
 
-	HUDManager::GetSingleton()->index(id)->SetColor(r,g,b);
+	if(IsEnabled())
+		HUDManager::GetSingleton()->index(id)->SetColor(r,g,b);
 	
 	return true;
 }
@@ -43,7 +48,8 @@ static bool SetHUDElementPosition_Execute(COMMAND_ARGS)
 	float x, y;
 	if(!ExtractArgs(EXTRACTARGS, &id, &x, &y)) return true;
 
-	HUDManager::GetSingleton()->index(id)->SetPosition(x,y,0);
+	if(IsEnabled())
+		HUDManager::GetSingleton()->index(id)->SetPosition(x,y,0);
 	
 	return true;
 }
@@ -55,7 +61,8 @@ static bool SetHUDElementScale_Execute(COMMAND_ARGS)
 	float x, y;
 	if(!ExtractArgs(EXTRACTARGS, &id, &x, &y)) return true;
 
-	HUDManager::GetSingleton()->index(id)->SetScale(x,y);
+	if(IsEnabled())
+		HUDManager::GetSingleton()->index(id)->SetScale(x,y);
 	
 	return true;
 }
@@ -67,7 +74,8 @@ static bool SetHUDElementRotation_Execute(COMMAND_ARGS)
 	float rot;
 	if(!ExtractArgs(EXTRACTARGS, &id, &rot)) return true;
 
-	HUDManager::GetSingleton()->index(id)->SetRotation(rot);
+	if(IsEnabled())
+		HUDManager::GetSingleton()->index(id)->SetRotation(rot);
 	
 	return true;
 }

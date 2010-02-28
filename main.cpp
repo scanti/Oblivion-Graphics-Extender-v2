@@ -288,16 +288,22 @@ bool OBSEPlugin_Load(const OBSEInterface * obse)
 
 		INIList::GetSingleton()->ReadAllFromINI();
 
-		// register to receive messages from OBSE
-		OBSEMessagingInterface* msgIntfc = (OBSEMessagingInterface*)obse->QueryInterface(kInterface_Messaging);
-		SetMessaging(msgIntfc,g_pluginHandle);
-		msgIntfc->RegisterListener(g_pluginHandle, "OBSE", MessageHandler);
+		if (IsEnabled())
+		{
+			// register to receive messages from OBSE
+			OBSEMessagingInterface* msgIntfc = (OBSEMessagingInterface*)obse->QueryInterface(kInterface_Messaging);
+			SetMessaging(msgIntfc,g_pluginHandle);
+			msgIntfc->RegisterListener(g_pluginHandle, "OBSE", MessageHandler);
 
-		g_serialization->SetSaveCallback(g_pluginHandle, SaveCallback);
-		g_serialization->SetLoadCallback(g_pluginHandle, LoadCallback);
-		g_serialization->SetNewGameCallback(g_pluginHandle, NewGameCallback);
+			g_serialization->SetSaveCallback(g_pluginHandle, SaveCallback);
+			g_serialization->SetLoadCallback(g_pluginHandle, LoadCallback);
+			g_serialization->SetNewGameCallback(g_pluginHandle, NewGameCallback);
 
-		CreateDepthBufferHook();
+			CreateDepthBufferHook();
+		}
+		else
+			g_serialization->SetLoadCallback(g_pluginHandle, LoadCallback);
+			// must register callback or game will crash.
 	}
 
 	return true;

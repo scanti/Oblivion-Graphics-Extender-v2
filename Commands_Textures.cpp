@@ -2,6 +2,7 @@
 #include "Commands_Misc.h"
 #include "TextureManager.h"
 #include "Commands_Params.h"
+#include "OBSEShaderInterface.h"
 
 static bool LoadTexture_Execute(COMMAND_ARGS)
 {
@@ -11,8 +12,11 @@ static bool LoadTexture_Execute(COMMAND_ARGS)
 	DWORD fromFile;
 	if(!ExtractArgs(EXTRACTARGS, &path, &fromFile)) return true;
 
-	*result = TextureManager::GetSingleton()->LoadTexture(path, fromFile);
-	
+	if(IsEnabled())
+		*result = TextureManager::GetSingleton()->LoadTexture(path, fromFile);
+	else
+		*result=-1;
+
 	return true;
 }
 
@@ -23,7 +27,8 @@ static bool FreeTexture_Execute(COMMAND_ARGS)
 	DWORD id;
 	if(!ExtractArgs(EXTRACTARGS, &id)) return true;
 
-	TextureManager::GetSingleton()->FreeTexture(id);
+	if(IsEnabled())
+		TextureManager::GetSingleton()->FreeTexture(id);
 	
 	return true;
 }
