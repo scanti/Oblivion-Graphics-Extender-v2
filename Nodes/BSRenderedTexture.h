@@ -24,6 +24,15 @@ namespace v1_2_416
 		BSRenderedTexture();
 		virtual ~BSRenderedTexture();
 		
+		static BSRenderedTexture *Create(UInt32 Width, UInt32 Height, UInt32 u3, UInt32 u4, void *DepthStecilBuffer)
+		{
+			_asm
+			{
+				mov eax,0x007D6F40
+				jmp eax
+			}
+		}
+		
 		NiRenderTargetGroup		*RenderTargets;		// 08
 		UInt32					var_0C;				// 0C
 		UInt32					var_10;				// 10

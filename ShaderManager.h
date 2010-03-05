@@ -12,11 +12,13 @@
 #include "Rendering.h"
 #include "obse/PluginAPI.h"
 
-#define MYVERTEXFORMAT D3DFVF_XYZRHW|D3DFVF_TEX1
+//#define MYVERTEXFORMAT D3DFVF_XYZRHW|D3DFVF_TEX1
+#define MYVERTEXFORMAT D3DFVF_XYZ|D3DFVF_TEX1
 
 #define SHADERVERSION 1
 
-struct D3D_sShaderVertex { float x,y,z,w,u,v; };
+//struct D3D_sShaderVertex { float x,y,z,w,u,v; };
+struct D3D_sShaderVertex { float x,y,z,u,v; };
 
 struct TextureType
 {

@@ -329,6 +329,7 @@ void ShaderManager::Render(IDirect3DDevice9 *D3DDevice,IDirect3DSurface9 *Render
 	Renderer->RenderStateManager->SetRenderState(D3DRS_COLORWRITEENABLE,0xF,false);
 	Renderer->RenderStateManager->SetRenderState(D3DRS_ALPHABLENDENABLE,false,false);
 	Renderer->RenderStateManager->SetRenderState(D3DRS_ZENABLE,D3DZB_FALSE,false);
+	Renderer->RenderStateManager->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE,false);
 
 	UpdateFrameConstants();
 
@@ -348,6 +349,15 @@ void ShaderManager::Render(IDirect3DDevice9 *D3DDevice,IDirect3DSurface9 *Render
 	D3DDevice->StretchRect(RenderFrom,0,TexMan->thisframeSurf,0,D3DTEXF_NONE);
 	D3DDevice->StretchRect(RenderFrom,0,RenderTo,0,D3DTEXF_NONE); // Blank screen fix when ShaderList is empty.
 	
+	D3DXMATRIX mIdent, mProj;
+
+	D3DXMatrixIdentity(&mIdent);
+	D3DXMatrixOrthoOffCenterRH(&mProj,0, v1_2_416::GetRenderer()->SizeWidth,0, v1_2_416::GetRenderer()->SizeHeight, 1.0, 10.0);
+	//D3DDevice->SetTransform(D3DTS_PROJECTION, &mProj);
+	D3DDevice->SetTransform(D3DTS_PROJECTION, &mIdent);
+	D3DDevice->SetTransform(D3DTS_VIEW, &mIdent);
+	D3DDevice->SetTransform(D3DTS_WORLD,&mIdent);
+
 	if(UseShaderList.data)
 	{
 		StaticShaderList::iterator SShader=StaticShaders.begin();
@@ -357,6 +367,9 @@ void ShaderManager::Render(IDirect3DDevice9 *D3DDevice,IDirect3DSurface9 *Render
 			if((*SShader)->IsEnabled())
 			{
 				(*SShader)->ApplyConstants(&ShaderConst);
+				D3DDevice->SetVertexShader(NULL); 
+				// Have to do this in case the effect has no vertex shader. The stupid effect system
+				// uses the last vertex shader that was active and much strangeness occurs.
 				(*SShader)->Render(D3DDevice,RenderTo);
 				D3DDevice->StretchRect(RenderTo,0,TexMan->thisframeSurf,0,D3DTEXF_NONE);
 			}
@@ -483,6 +496,8 @@ bool ShaderManager::RemoveShader(int ShaderNum)
 
 void ShaderManager::InitialiseBuffers()
 {
+
+/*
 	D3D_sShaderVertex ShaderVertices[] = 
 	{
 		{-0.5,-0.5,0,1,0,0},
@@ -490,12 +505,21 @@ void ShaderManager::InitialiseBuffers()
 		{+5.0,-0.5,0,1,1,0},
 		{+5.0,+5.0,0,1,1,1}
 	};
+*/
+
+	D3D_sShaderVertex ShaderVertices[] = 
+	{
+		{-1,+1,1,0,0},
+		{-1,-1,1,0,1},
+		{+1,+1,1,1,0},
+		{+1,-1,1,1,1}
+	};
 
 	_MESSAGE("Creating vertex buffers.");
 	GetD3DDevice()->CreateVertexBuffer(4*sizeof(D3D_sShaderVertex),D3DUSAGE_WRITEONLY,MYVERTEXFORMAT,D3DPOOL_DEFAULT,&D3D_ShaderBuffer,0);
 	void* VertexPointer;
-	ShaderVertices[3].x=ShaderVertices[2].x=(float)(v1_2_416::GetRenderer()->SizeWidth)-.5f;
-	ShaderVertices[3].y=ShaderVertices[1].y=(float)(v1_2_416::GetRenderer()->SizeHeight)-.5f;
+	//ShaderVertices[3].x=ShaderVertices[2].x=(float)(v1_2_416::GetRenderer()->SizeWidth)-.5f;
+	//ShaderVertices[3].y=ShaderVertices[1].y=(float)(v1_2_416::GetRenderer()->SizeHeight)-.5f;
 	D3D_ShaderBuffer->Lock(0,0,&VertexPointer,0);
 	CopyMemory(VertexPointer,ShaderVertices,sizeof(ShaderVertices));
 	D3D_ShaderBuffer->Unlock();
