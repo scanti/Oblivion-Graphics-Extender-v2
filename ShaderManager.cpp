@@ -5,6 +5,7 @@
 static global<bool> UseShaderList(true,NULL,"Shaders","bUseShaderList");
 static global<char*> ShaderListFile("data\\shaders\\shaderlist.txt",NULL,"Shaders","sShaderListFile");
 static global<bool> UseLegacyCompiler(false,NULL,"Shaders","bUseLegacyCompiler");
+static global<bool> SplitScreen(false,NULL,"Shaders","bRenderHalfScreen");
 
 ShaderRecord::ShaderRecord()
 {
@@ -349,11 +350,9 @@ void ShaderManager::Render(IDirect3DDevice9 *D3DDevice,IDirect3DSurface9 *Render
 	D3DDevice->StretchRect(RenderFrom,0,TexMan->thisframeSurf,0,D3DTEXF_NONE);
 	D3DDevice->StretchRect(RenderFrom,0,RenderTo,0,D3DTEXF_NONE); // Blank screen fix when ShaderList is empty.
 	
-	D3DXMATRIX mIdent, mProj;
-
+	// Set up world/view/proj matrices in case there's no vertex shader.
+	D3DXMATRIX mIdent;
 	D3DXMatrixIdentity(&mIdent);
-	D3DXMatrixOrthoOffCenterRH(&mProj,0, v1_2_416::GetRenderer()->SizeWidth,0, v1_2_416::GetRenderer()->SizeHeight, 1.0, 10.0);
-	//D3DDevice->SetTransform(D3DTS_PROJECTION, &mProj);
 	D3DDevice->SetTransform(D3DTS_PROJECTION, &mIdent);
 	D3DDevice->SetTransform(D3DTS_VIEW, &mIdent);
 	D3DDevice->SetTransform(D3DTS_WORLD,&mIdent);
@@ -496,30 +495,31 @@ bool ShaderManager::RemoveShader(int ShaderNum)
 
 void ShaderManager::InitialiseBuffers()
 {
+	float minx,minu;
 
-/*
+	if(SplitScreen.data)
+	{
+		minx = 0;
+		minu = 0.5;
+	}
+	else
+	{
+		minx = -1;
+		minu = 0;
+	}
+
 	D3D_sShaderVertex ShaderVertices[] = 
 	{
-		{-0.5,-0.5,0,1,0,0},
-		{-0.5,+5.0,0,1,0,1},
-		{+5.0,-0.5,0,1,1,0},
-		{+5.0,+5.0,0,1,1,1}
-	};
-*/
-
-	D3D_sShaderVertex ShaderVertices[] = 
-	{
-		{-1,+1,1,0,0},
-		{-1,-1,1,0,1},
-		{+1,+1,1,1,0},
-		{+1,-1,1,1,1}
+		{minx ,+1 ,1, minu ,0},
+		{minx ,-1 ,1, minu ,1},
+		{1    ,+1 ,1, 1    ,0},
+		{1    ,-1 ,1, 1    ,1}
 	};
 
 	_MESSAGE("Creating vertex buffers.");
 	GetD3DDevice()->CreateVertexBuffer(4*sizeof(D3D_sShaderVertex),D3DUSAGE_WRITEONLY,MYVERTEXFORMAT,D3DPOOL_DEFAULT,&D3D_ShaderBuffer,0);
 	void* VertexPointer;
-	//ShaderVertices[3].x=ShaderVertices[2].x=(float)(v1_2_416::GetRenderer()->SizeWidth)-.5f;
-	//ShaderVertices[3].y=ShaderVertices[1].y=(float)(v1_2_416::GetRenderer()->SizeHeight)-.5f;
+
 	D3D_ShaderBuffer->Lock(0,0,&VertexPointer,0);
 	CopyMemory(VertexPointer,ShaderVertices,sizeof(ShaderVertices));
 	D3D_ShaderBuffer->Unlock();
