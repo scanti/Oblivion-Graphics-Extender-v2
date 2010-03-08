@@ -16,6 +16,7 @@
 #include "GlobalSettings.h"
 
 #include <stdlib.h>
+#include "delayimp.h"
 
 #define EXTRACTARGS paramInfo, arg1, opcodeOffsetPtr, thisObj, arg3, scriptObj, eventList
 
@@ -148,6 +149,7 @@ void MessageHandler(OBSEMessagingInterface::Message* msg)
 		_MESSAGE("Received ExitGame message.");
 		INIList::GetSingleton()->WriteAllToINI();
 		ReleaseShader();
+		LostDepthBuffer(true,NULL);
 		break;
 	case OBSEMessagingInterface::kMessage_LoadGame:
 		_MESSAGE("Received load game message.");
@@ -241,6 +243,17 @@ bool OBSEPlugin_Query(const OBSEInterface * obse, PluginInfo * info)
 			_ERROR("incorrect serialization version found (got %08X need %08X)", g_serialization->version, OBSESerializationInterface::kVersion);
 			return false;
 		}
+
+// Delay loading d3dx9_41.dll file so I can check that it exists on the system.
+// Set linker options DELAYLOAD:d3dx9_41.dll & DELAY:NOBIND (No binding in case someone
+// is using a proxy dll).
+
+		if (FAILED(__HrLoadAllImportsForDll("d3dx9_41.dll"))) 
+		{
+			_ERROR ( "ERROR - can't find d3dx9_41.dll file. Please update DirectX." );
+			return false;
+		}
+
 	}
 	else
 	{
@@ -259,26 +272,26 @@ bool OBSEPlugin_Load(const OBSEInterface * obse)
 
 	obse->SetOpcodeBase(0x2100);
 
-	obse->RegisterCommand(&kCommandInfo_GetAvailableGraphicsMemory);
-	obse->RegisterCommand(&kCommandInfo_GetScreenWidth);
-	obse->RegisterCommand(&kCommandInfo_GetScreenHeight);
-	obse->RegisterCommand(&kCommandInfo_LoadShader);
-	obse->RegisterCommand(&kCommandInfo_ApplyFullscreenShader);
-	obse->RegisterCommand(&kCommandInfo_RemoveFullscreenShader);
-	obse->RegisterCommand(&kCommandInfo_SetShaderInt);
-	obse->RegisterCommand(&kCommandInfo_SetShaderFloat);
-	obse->RegisterCommand(&kCommandInfo_SetShaderVector);
-	obse->RegisterCommand(&kCommandInfo_SetShaderTexture);
-	obse->RegisterCommand(&kCommandInfo_ForceGraphicsReset);
-	obse->RegisterCommand(&kCommandInfo_LoadTexture);
-	obse->RegisterCommand(&kCommandInfo_FreeTexture);
-	obse->RegisterCommand(&kCommandInfo_CreateHUDElement);
-	obse->RegisterCommand(&kCommandInfo_SetHUDElementTexture);
-	obse->RegisterCommand(&kCommandInfo_SetHUDElementColour);
-	obse->RegisterCommand(&kCommandInfo_SetHUDElementPosition);
-	obse->RegisterCommand(&kCommandInfo_SetHUDElementScale);
-	obse->RegisterCommand(&kCommandInfo_SetHUDElementRotation);
-	obse->RegisterCommand(&kCommandInfo_PurgeManagedTextures);
+	obse->RegisterCommand(&kCommandInfo_GetAvailableGraphicsMemory);	// 2100
+	obse->RegisterCommand(&kCommandInfo_GetScreenWidth);				// 2101
+	obse->RegisterCommand(&kCommandInfo_GetScreenHeight);				// 2102
+	obse->RegisterCommand(&kCommandInfo_LoadShader);					// 2103
+	obse->RegisterCommand(&kCommandInfo_ApplyFullscreenShader);			// 2104
+	obse->RegisterCommand(&kCommandInfo_RemoveFullscreenShader);		// 2105
+	obse->RegisterCommand(&kCommandInfo_SetShaderInt);					// 2106
+	obse->RegisterCommand(&kCommandInfo_SetShaderFloat);				// 2107
+	obse->RegisterCommand(&kCommandInfo_SetShaderVector);				// 2108
+	obse->RegisterCommand(&kCommandInfo_SetShaderTexture);				// 2109
+	obse->RegisterCommand(&kCommandInfo_ForceGraphicsReset);			// 210A
+	obse->RegisterCommand(&kCommandInfo_LoadTexture);					// 210B
+	obse->RegisterCommand(&kCommandInfo_FreeTexture);					// 210C
+	obse->RegisterCommand(&kCommandInfo_CreateHUDElement);				// 210D
+	obse->RegisterCommand(&kCommandInfo_SetHUDElementTexture);			// 210E
+	obse->RegisterCommand(&kCommandInfo_SetHUDElementColour);			// 210F
+	obse->RegisterCommand(&kCommandInfo_SetHUDElementPosition);			// 2110
+	obse->RegisterCommand(&kCommandInfo_SetHUDElementScale);			// 2111
+	obse->RegisterCommand(&kCommandInfo_SetHUDElementRotation);			// 2112
+	obse->RegisterCommand(&kCommandInfo_PurgeManagedTextures);			// 2113
 	
 // We don't want to hook the construction set.
 

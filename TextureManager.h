@@ -60,16 +60,21 @@ public:
 	TextureList				Textures;
 	StaticTextureList		StaticTextures;
 
-	IDirect3DTexture9*		thisframeTex;						// D3D_ShaderTex1;
-	IDirect3DSurface9*		thisframeSurf;						// D3D_ShaderSurf1;
-	IDirect3DTexture9*		lastpassTex;						// D3D_ShaderTex2;
-	IDirect3DSurface9*		lastpassSurf;						// D3D_ShaderSurf2;
+	IDirect3DTexture9*		thisframeTex;						
+	IDirect3DSurface9*		thisframeSurf;
+
+	IDirect3DTexture9*		lastpassTex;						
+	IDirect3DSurface9*		lastpassSurf;					
+	
 	IDirect3DTexture9*		lastframeTex;
 	IDirect3DSurface9*		lastframeSurf;
+	
 	bool					HasDepth;
+	
 	IDirect3DTexture9*		depth;
 	IDirect3DSurface9*		depthSurface;
 	IDirect3DTexture9*		depthRAWZ;
+	
 	bool					RAWZflag;
 };
 

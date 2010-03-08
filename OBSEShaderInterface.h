@@ -28,13 +28,7 @@ public:
 	virtual void			LoadGame(OBSESerializationInterface *Interface);
 	virtual void			SaveGame(OBSESerializationInterface *Interface);
 
-	UInt32					MemoryAddr;
-	
-	// TO DO: Create DumpString object and look for overflows.
-
 	TextBuffer 				*MemoryDumpString;
-	static const UInt32		MaxDumpType=4;
-	UInt32					DumpType;
 
 	float rcpres[2];
 	

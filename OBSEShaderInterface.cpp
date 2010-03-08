@@ -28,7 +28,7 @@ bool LostDevice(bool stage,void *parameters)
 {
 	NiTListBase<SpoofShader>::Node *CurrentNode;
 
-	_MESSAGE("Lost device callback.");
+	_MESSAGE("Lost device handler:");
 	if (OBSEShaderInterface::Singleton)
 	{
 		CurrentNode=obImageSpaceShaderList->p->ShaderList.start;
@@ -73,17 +73,15 @@ OBSEShaderInterface	*OBSEShaderInterface::GetSingleton()
 void OBSEShaderInterface::ShaderCode(IDirect3DDevice9 *D3DDevice,IDirect3DSurface9 *RenderTo, IDirect3DSurface9 *RenderFrom, DeviceInfo *Info)
 {
 
-	//HRESULT	hr;
 	
 	if(Info->AltRenderTarget)
-		_MESSAGE("width = %i, height = %i",Info->Width,Info->Height);
+		_MESSAGE("Alt Render target - width = %i, height = %i",Info->Width,Info->Height);
 	
 	if(Info->AltRenderTarget && (SaveFix.data || (Info->Height==256 && Info->Width==256)))
 	{
 		D3DDevice->StretchRect(RenderFrom,0,RenderTo,0,D3DTEXF_NONE);
 		return;
 	}
-
 	
 	ShaderManager* ShaderMan=ShaderManager::GetSingleton();
 	ShaderMan->UpdateFrameConstants();
@@ -184,18 +182,19 @@ void OBSEShaderInterface::DeviceRelease()
 		while(pFont->Release()){}
 		pFont=NULL;
 	}
-
-	TextureManager::GetSingleton()->DeviceRelease();
-	ShaderManager::GetSingleton()->DeviceRelease();
-
-	delete(TextureManager::GetSingleton());
-	delete(ShaderManager::GetSingleton());
-
+	
 	if(pFont2)
 	{
 		while(pFont2->Release()){}
 		pFont2=NULL;
 	}
+
+	TextureManager::GetSingleton()->DeviceRelease();
+	ShaderManager::GetSingleton()->DeviceRelease();
+	//LostDepthBuffer(true,NULL);
+
+	delete(TextureManager::GetSingleton());
+	delete(ShaderManager::GetSingleton());
 
 	//delete MemoryDumpString;
 }
@@ -236,10 +235,6 @@ void OBSEShaderInterface::InitialiseShader(void)
 
 	FontColor=D3DCOLOR_RGBA(255,255,255,255);
 	FontColor2=D3DCOLOR_RGBA(0,0,0,255);
-
-	DumpType=0;
-
-	MemoryAddr=0x00B02000;
 
 	ShaderManager::GetSingleton()->InitialiseBuffers();
 	TextureManager::GetSingleton()->InitialiseFrameTextures();

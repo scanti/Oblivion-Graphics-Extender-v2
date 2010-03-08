@@ -27,7 +27,7 @@ void ShaderRecord::Render(IDirect3DDevice9*	D3DDevice,IDirect3DSurface9 *RenderT
 		return;
 	UINT passes;
 
-	Effect->Begin(&passes,D3DXFX_DONOTSAVESTATE);
+	Effect->Begin(&passes,NULL);
 	UINT pass=0;
 	while(true)
 	{
@@ -44,13 +44,15 @@ void ShaderRecord::Render(IDirect3DDevice9*	D3DDevice,IDirect3DSurface9 *RenderT
 
 void ShaderRecord::OnLostDevice(void)
 {
-	Effect->OnLostDevice();
+	if(Effect)
+		Effect->OnLostDevice();
 	return;
 }
 
 void ShaderRecord::OnResetDevice(void)
 {
-	Effect->OnResetDevice();
+	if(Effect)
+		Effect->OnResetDevice();
 	return;
 }
 
@@ -107,7 +109,7 @@ bool ShaderRecord::LoadShader(char *Filename)
 	{
 		if(pCompilationErrors)
 		{
-			_MESSAGE("Shader compilation errors occured");
+			_MESSAGE("Shader compilation errors occured:");
 			_MESSAGE(Filename);
 			_MESSAGE((char*)pCompilationErrors->GetBufferPointer());
 			pCompilationErrors->Release();
@@ -335,6 +337,13 @@ void ShaderManager::Render(IDirect3DDevice9 *D3DDevice,IDirect3DSurface9 *Render
 	UpdateFrameConstants();
 
 	TextureManager* TexMan=TextureManager::GetSingleton();
+
+	// Set up world/view/proj matrices to identity in case there's no vertex shader.
+	D3DXMATRIX mIdent;
+	D3DXMatrixIdentity(&mIdent);
+	D3DDevice->SetTransform(D3DTS_PROJECTION, &mIdent);
+	D3DDevice->SetTransform(D3DTS_VIEW, &mIdent);
+	D3DDevice->SetTransform(D3DTS_WORLD,&mIdent);
 	
 	if(TexMan->RAWZflag)
 	{
@@ -349,18 +358,10 @@ void ShaderManager::Render(IDirect3DDevice9 *D3DDevice,IDirect3DSurface9 *Render
 
 	D3DDevice->StretchRect(RenderFrom,0,TexMan->thisframeSurf,0,D3DTEXF_NONE);
 	D3DDevice->StretchRect(RenderFrom,0,RenderTo,0,D3DTEXF_NONE); // Blank screen fix when ShaderList is empty.
-	
-	// Set up world/view/proj matrices in case there's no vertex shader.
-	D3DXMATRIX mIdent;
-	D3DXMatrixIdentity(&mIdent);
-	D3DDevice->SetTransform(D3DTS_PROJECTION, &mIdent);
-	D3DDevice->SetTransform(D3DTS_VIEW, &mIdent);
-	D3DDevice->SetTransform(D3DTS_WORLD,&mIdent);
 
 	if(UseShaderList.data)
 	{
 		StaticShaderList::iterator SShader=StaticShaders.begin();
-
 		while(SShader!=StaticShaders.end())
 		{
 			if((*SShader)->IsEnabled())
@@ -377,12 +378,12 @@ void ShaderManager::Render(IDirect3DDevice9 *D3DDevice,IDirect3DSurface9 *Render
 	}
 
 	ShaderList::iterator Shader=Shaders.begin();
-
 	while(Shader!=Shaders.end())
 	{
 		if(Shader->second->IsEnabled())
 		{
 			Shader->second->ApplyConstants(&ShaderConst);
+			D3DDevice->SetVertexShader(NULL);
 			Shader->second->Render(D3DDevice,RenderTo);
 			D3DDevice->StretchRect(RenderTo,0,TexMan->thisframeSurf,0,D3DTEXF_NONE);
 		}
@@ -399,7 +400,11 @@ void ShaderManager::RenderRAWZfix(IDirect3DDevice9* D3DDevice,IDirect3DSurface9 
 	if(!DepthShader)
 	{
 		DepthShader=new(ShaderRecord);
-		DepthShader->LoadShader("RAWZfix.fx");
+		if(!DepthShader->LoadShader("RAWZfix.fx"))
+		{
+			_MESSAGE("ERROR - RAWZfix.fx is missing! Please reinstall OBGEv2.2");
+			return;
+		}
 		DepthShader->Effect->SetTexture("RAWZdepth",TextureManager::GetSingleton()->depthRAWZ);
 	}
 	DepthShader->Render(D3DDevice,RenderTo);
@@ -445,7 +450,6 @@ int ShaderManager::AddShader(char *Filename, bool AllowDuplicates, UINT32 refID)
 	NewShader->Effect->SetTexture("lastpass",TexMan->lastpassTex);
 	NewShader->Effect->SetTexture("lastframe",TexMan->lastframeTex);
 	NewShader->Effect->SetTexture("Depth",TexMan->depth);
-
 	NewShader->Effect->SetFloatArray("rcpres",(float*)&ShaderConst.rcpres,2);
 	NewShader->Effect->SetBool("bHasDepth",ShaderConst.bHasDepth);
 
@@ -475,7 +479,6 @@ bool ShaderManager::AddStaticShader(char *Filename)
 	NewShader->Effect->SetTexture("lastpass",TexMan->lastpassTex);
 	NewShader->Effect->SetTexture("lastframe",TexMan->lastframeTex);
 	NewShader->Effect->SetTexture("Depth",TexMan->depth);
-
 	NewShader->Effect->SetFloatArray("rcpres",(float*)&ShaderConst.rcpres,2);
 	NewShader->Effect->SetBool("bHasDepth",ShaderConst.bHasDepth);
 	
@@ -495,7 +498,13 @@ bool ShaderManager::RemoveShader(int ShaderNum)
 
 void ShaderManager::InitialiseBuffers()
 {
-	float minx,minu;
+	float minx,minu,uadj,vadj;
+
+	ShaderConst.rcpres[0]=1.0f/(float)v1_2_416::GetRenderer()->SizeWidth;
+	ShaderConst.rcpres[1]=1.0f/(float)v1_2_416::GetRenderer()->SizeHeight;
+
+	uadj=ShaderConst.rcpres[0]*0.5;
+	vadj=ShaderConst.rcpres[1]*0.5;
 
 	if(SplitScreen.data)
 	{
@@ -510,10 +519,10 @@ void ShaderManager::InitialiseBuffers()
 
 	D3D_sShaderVertex ShaderVertices[] = 
 	{
-		{minx ,+1 ,1, minu ,0},
-		{minx ,-1 ,1, minu ,1},
-		{1    ,+1 ,1, 1    ,0},
-		{1    ,-1 ,1, 1    ,1}
+		{minx ,+1 ,1, minu+uadj ,0+vadj},
+		{minx ,-1 ,1, minu+uadj ,1+vadj},
+		{1    ,+1 ,1, 1   +uadj ,0+vadj},
+		{1    ,-1 ,1, 1   +uadj ,1+vadj}
 	};
 
 	_MESSAGE("Creating vertex buffers.");
@@ -524,8 +533,6 @@ void ShaderManager::InitialiseBuffers()
 	CopyMemory(VertexPointer,ShaderVertices,sizeof(ShaderVertices));
 	D3D_ShaderBuffer->Unlock();
 	
-	ShaderConst.rcpres[0]=1.0f/(float)v1_2_416::GetRenderer()->SizeWidth;
-	ShaderConst.rcpres[1]=1.0f/(float)v1_2_416::GetRenderer()->SizeHeight;
 	ShaderConst.bHasDepth=HasDepth();
 
 	return;
@@ -536,11 +543,8 @@ void ShaderManager::DeviceRelease()
 	if(D3D_ShaderBuffer)
 	{
 		_MESSAGE("Releasing shader vertex buffer.");
-		if(D3D_ShaderBuffer)
-		{
-			while(D3D_ShaderBuffer->Release()){}
-			D3D_ShaderBuffer=NULL;
-		}
+		while(D3D_ShaderBuffer->Release()){}
+		D3D_ShaderBuffer=NULL;
 	}
 
 	StaticShaderList::iterator SShader=StaticShaders.begin();
@@ -560,6 +564,12 @@ void ShaderManager::DeviceRelease()
 		Shader++;
 	}
 	Shaders.clear();
+
+	if(DepthShader)
+	{
+		while(DepthShader->Effect->Release()){}
+		DepthShader->Effect=NULL;
+	}
 }
 
 void ShaderManager::OnLostDevice()
@@ -567,15 +577,11 @@ void ShaderManager::OnLostDevice()
 	if(D3D_ShaderBuffer)
 	{
 		_MESSAGE("Releasing shader vertex buffer.");
-		if(D3D_ShaderBuffer)
-		{
-			while(D3D_ShaderBuffer->Release()){}
-			D3D_ShaderBuffer=NULL;
-		}
+		while(D3D_ShaderBuffer->Release()){}
+		D3D_ShaderBuffer=NULL;
 	}
 
 	StaticShaderList::iterator SShader=StaticShaders.begin();
-
 	while(SShader!=StaticShaders.end())
 	{
 		(*SShader)->OnLostDevice();
@@ -583,12 +589,14 @@ void ShaderManager::OnLostDevice()
 	}
 
 	ShaderList::iterator Shader=Shaders.begin();
-
 	while(Shader!=Shaders.end())
 	{
 		Shader->second->OnLostDevice();
 		Shader++;
 	}
+
+	if(DepthShader)
+		DepthShader->OnLostDevice();
 }
 
 void ShaderManager::OnResetDevice()
@@ -596,6 +604,19 @@ void ShaderManager::OnResetDevice()
 	TextureManager	*TexMan=TextureManager::GetSingleton();
 	
 	InitialiseBuffers();
+
+	StaticShaderList::iterator SShader=StaticShaders.begin();
+	while(SShader!=StaticShaders.end())
+	{
+		(*SShader)->OnResetDevice();
+		(*SShader)->Effect->SetTexture("thisframe",TexMan->thisframeTex);
+		(*SShader)->Effect->SetTexture("lastpass",TexMan->lastpassTex);
+		(*SShader)->Effect->SetTexture("lastframe",TexMan->lastframeTex);
+		(*SShader)->Effect->SetTexture("Depth",TexMan->depth);
+		(*SShader)->Effect->SetFloatArray("rcpres",(float*)&ShaderConst.rcpres,2);
+		(*SShader)->Effect->SetBool("bHasDepth",ShaderConst.bHasDepth);
+		SShader++;
+	}
 
 	ShaderList::iterator Shader=Shaders.begin();
 	while(Shader!=Shaders.end())
@@ -605,7 +626,6 @@ void ShaderManager::OnResetDevice()
 		Shader->second->Effect->SetTexture("lastpass",TexMan->lastpassTex);
 		Shader->second->Effect->SetTexture("lastframe",TexMan->lastframeTex);
 		Shader->second->Effect->SetTexture("Depth",TexMan->depth);
-
 		Shader->second->Effect->SetFloatArray("rcpres",(float*)&ShaderConst.rcpres,2);
 		Shader->second->Effect->SetBool("bHasDepth",ShaderConst.bHasDepth);
 		Shader++;
@@ -791,16 +811,7 @@ void ShaderManager::LoadGame(OBSESerializationInterface *Interface)
 			NewShader->Enabled=LoadEnabled;
 			NewShader->ParentRefID=LoadRefID;
 
-		_MESSAGE("Setting effects screen texture.");
-		TextureManager	*TexMan=TextureManager::GetSingleton();
-		NewShader->Effect->SetTexture("thisframe",TexMan->thisframeTex);
-		NewShader->Effect->SetTexture("lastpass",TexMan->lastpassTex);
-		NewShader->Effect->SetTexture("lastframe",TexMan->lastframeTex);
-		NewShader->Effect->SetTexture("Depth",TexMan->depth);
-
-		NewShader->Effect->SetFloatArray("rcpres",(float*)&ShaderConst.rcpres,2);
-		NewShader->Effect->SetBool("bHasDepth",ShaderConst.bHasDepth);
-
+			TextureManager	*TexMan=TextureManager::GetSingleton();
 	
 			Interface->GetNextRecordInfo(&type, &version, &length);
 
@@ -835,6 +846,16 @@ void ShaderManager::LoadGame(OBSESerializationInterface *Interface)
 				}
 				Interface->GetNextRecordInfo(&type, &version, &length);
 			}
+
+			// Need to set after loading shaders vars to save file doesn't override them.
+			_MESSAGE("Setting effects screen texture.");
+			NewShader->Effect->SetTexture("thisframe",TexMan->thisframeTex);
+			NewShader->Effect->SetTexture("lastpass",TexMan->lastpassTex);
+			NewShader->Effect->SetTexture("lastframe",TexMan->lastframeTex);
+			NewShader->Effect->SetTexture("Depth",TexMan->depth);
+			NewShader->Effect->SetFloatArray("rcpres",(float*)&ShaderConst.rcpres,2);
+			NewShader->Effect->SetBool("bHasDepth",ShaderConst.bHasDepth);
+
 			Shaders.insert(std::make_pair(LoadShaderNum,NewShader));
 			_MESSAGE("Inserting the shader into the list.");
 		}
