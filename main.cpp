@@ -272,6 +272,8 @@ bool OBSEPlugin_Load(const OBSEInterface * obse)
 
 	obse->SetOpcodeBase(0x2100);
 
+	// Shader range 2100 to 21FF
+
 	obse->RegisterCommand(&kCommandInfo_GetAvailableGraphicsMemory);	// 2100
 	obse->RegisterCommand(&kCommandInfo_GetScreenWidth);				// 2101
 	obse->RegisterCommand(&kCommandInfo_GetScreenHeight);				// 2102
@@ -292,6 +294,7 @@ bool OBSEPlugin_Load(const OBSEInterface * obse)
 	obse->RegisterCommand(&kCommandInfo_SetHUDElementScale);			// 2111
 	obse->RegisterCommand(&kCommandInfo_SetHUDElementRotation);			// 2112
 	obse->RegisterCommand(&kCommandInfo_PurgeManagedTextures);			// 2113
+	obse->RegisterCommand(&kCommandInfo_IsShaderEnabled);				// 2114
 	
 // We don't want to hook the construction set.
 

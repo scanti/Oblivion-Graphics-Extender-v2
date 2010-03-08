@@ -975,3 +975,13 @@ void ShaderManager::PurgeTexture(IDirect3DTexture9 *texture)
 		Shader++;
 	}
 }
+
+bool ShaderManager::GetShaderState(int ShaderNum)
+{
+	ShaderList::iterator Shader;
+ 
+	Shader=Shaders.find(ShaderNum);
+	if(Shader!=Shaders.end())
+		return(Shader->second->IsEnabled());
+	return(false);
+}

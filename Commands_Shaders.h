@@ -9,3 +9,4 @@ extern CommandInfo kCommandInfo_SetShaderInt;
 extern CommandInfo kCommandInfo_SetShaderFloat;
 extern CommandInfo kCommandInfo_SetShaderVector;
 extern CommandInfo kCommandInfo_SetShaderTexture;
+extern CommandInfo kCommandInfo_IsShaderEnabled;

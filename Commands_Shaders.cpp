@@ -122,6 +122,16 @@ static bool SetShaderTexture_Execute(COMMAND_ARGS)
 	return true;
 }
 
+static bool IsShaderEnabled_Execute(COMMAND_ARGS)
+{
+	*result=0;
+	DWORD id;
+	
+	if(!ExtractArgs(EXTRACTARGS, &id)) return true;
+	*result=ShaderManager::GetSingleton()->GetShaderState(id);
+	return true;
+}
+
 CommandInfo kCommandInfo_LoadShader =
 {
 	"LoadShader",
@@ -219,6 +229,21 @@ CommandInfo kCommandInfo_SetShaderTexture =
 	3,
 	kParams_SetFullscreenShaderInt,
 	SetShaderTexture_Execute,
+	0,
+	0,
+	0
+};
+
+CommandInfo kCommandInfo_IsShaderEnabled =
+{
+	"IsShaderEnabled",
+	"",
+	0,
+	"Returns the state of the loaded shader",
+	0,
+	1,
+	kParams_OneInt,
+	IsShaderEnabled_Execute,
 	0,
 	0,
 	0
