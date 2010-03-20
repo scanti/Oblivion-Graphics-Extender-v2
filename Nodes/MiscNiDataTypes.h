@@ -8,7 +8,17 @@ namespace v1_2_416
 		const char	* name;
 		NiRTTI		* parent;
 	};
-
+	
+	struct NiColorRGB
+	{
+		UInt8	r,g,b;
+	};
+	
+	struct NiColorRGBA
+	{
+		UInt8	r,g,b,a;
+	};
+	
 	struct NiMaterial
 	{
 		float r,g,b;

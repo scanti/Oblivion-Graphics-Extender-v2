@@ -13,6 +13,7 @@
 
 #include "NiRefObject.h"
 #include "NiPointer.h"
+#include "NiFogProperty.h"
 #include "D3D9.h"
 
 namespace v1_2_416
@@ -29,7 +30,7 @@ namespace v1_2_416
 		virtual void				 	func_01(void *u1);								// 01
 		virtual void					SetAlpha(void *AlphaProperty);					// 02
 		virtual void					SetDither(void *DitherProperty);				// 03
-		virtual void					SetFog(void *FogProperty);						// 04
+		virtual void					SetFog(NiFogProperty *FogProperty);				// 04
 		virtual void					SetMaterial(void *u1);							// 05
 		virtual void					SetShadeMode(void *ShadeProperty);				// 06
 		virtual void					SetSpecular(void *SpecularProperty);			// 07

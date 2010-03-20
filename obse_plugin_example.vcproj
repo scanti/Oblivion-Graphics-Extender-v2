@@ -413,6 +413,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\Nodes\NiFogProperty.h"
+				>
+			</File>
+			<File
 				RelativePath=".\Nodes\NiMatrix33.cpp"
 				>
 			</File>
@@ -438,6 +442,10 @@
 			</File>
 			<File
 				RelativePath=".\Nodes\NiPointer.h"
+				>
+			</File>
+			<File
+				RelativePath=".\Nodes\NiProperty.h"
 				>
 			</File>
 			<File
@@ -587,6 +595,14 @@
 		</File>
 		<File
 			RelativePath=".\Rendering.h"
+			>
+		</File>
+		<File
+			RelativePath=".\RenderStateManagerHooks.cpp"
+			>
+		</File>
+		<File
+			RelativePath=".\RenderStateManagerHooks.h"
 			>
 		</File>
 		<File

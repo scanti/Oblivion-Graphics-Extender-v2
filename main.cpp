@@ -13,6 +13,7 @@
 #include "OBSEShaderInterface.h"
 #include "Rendering.h"
 #include "DepthBufferHook.h"
+#include "RenderStateManagerHooks.h"
 #include "GlobalSettings.h"
 
 #include <stdlib.h>
@@ -316,6 +317,7 @@ bool OBSEPlugin_Load(const OBSEInterface * obse)
 			g_serialization->SetNewGameCallback(g_pluginHandle, NewGameCallback);
 
 			CreateDepthBufferHook();
+			//v1_2_416::NiDX9RenderStateEx::HookRenderStateManager();
 		}
 		else
 			g_serialization->SetLoadCallback(g_pluginHandle, LoadCallback);
